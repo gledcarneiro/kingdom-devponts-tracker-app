@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
-// Variáveis globais para Firebase.
+// Firebase configuration variables.
 const firebaseConfig = {
   apiKey: "AIzaSyAted6ls2JRLmlbAWpWnbNqr8lqvRiqNtY",
   authDomain: "kingdom-devponts-tracker.firebaseapp.com",
@@ -14,28 +13,22 @@ const firebaseConfig = {
   appId: "1:285976466192:web:8c754a66ebb61dca044b95"
 };
 
-// Função para inicializar o Firebase
-const initializeFirebase = () => {
-  try {
-    const app = initializeApp(firebaseConfig);
-    return {
-      auth: getAuth(app),
-      db: getFirestore(app)
-    };
-  } catch (e) {
-    console.error("Erro ao inicializar o Firebase:", e);
-    return null;
-  }
-};
+// Initialize Firebase ONE TIME
+let auth;
+try {
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+} catch (e) {
+  console.error("Fatal error initializing Firebase:", e);
+}
 
-// Componente para o formulário de login/registro
+
+// Component for the login/signup form
 const AuthForm = ({ email, setEmail, password, setPassword, isLoginView, handleAuth, loading, toggleView, message }) => (
-  // O KeyboardAvoidingView ajusta a tela para que o teclado não cubra os inputs.
   <KeyboardAvoidingView
     style={styles.container}
     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
   >
-    {/* O ScrollView permite que a tela seja rolada, evitando que o conteúdo fique 'preso' */}
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.formCard}>
         <View style={styles.logoContainer}>
@@ -48,7 +41,7 @@ const AuthForm = ({ email, setEmail, password, setPassword, isLoginView, handleA
             {isLoginView ? 'Acesse sua conta para continuar.' : 'Junte-se a nós para uma nova experiência!'}
           </Text>
         </View>
-        
+
         {message && (
           <Text style={[styles.message, message.type === 'error' ? styles.messageError : styles.messageSuccess]}>
             {message.text}
@@ -95,63 +88,81 @@ const AuthForm = ({ email, setEmail, password, setPassword, isLoginView, handleA
   </KeyboardAvoidingView>
 );
 
-// Componente para o perfil do usuário
-const UserProfile = ({ user, handleSignOut }) => (
-  <View style={styles.container}>
-    <View style={styles.profileCard}>
-      <Text style={styles.header}>Bem-vindo!</Text>
-      <Image
-        source={{ uri: 'https://placehold.co/80x80/6a1b9a/ffffff?text=Perfil' }}
-        style={styles.profileImage}
-      />
-      <Text style={styles.profileText}>E-mail: {user?.email}</Text>
-      <Text style={styles.profileText}>ID do Usuário: {user?.uid}</Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSignOut}
-      >
-        <Text style={styles.buttonText}>Sair</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+
+// Main Dashboard component
+const Dashboard = ({ user, handleSignOut }) => {
+  const [devPoints, setDevPoints] = useState(0); // State for DevPoints
+  const [ranking, setRanking] = useState([]); // State for ranking
+
+  // Example of how a button can increase points
+  const handleAddPoints = () => {
+    setDevPoints(currentPoints => currentPoints + 1);
+  };
+
+  return (
+    <SafeAreaView style={styles.dashboardContainer}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Bem-vindo, {user?.email}!</Text>
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutButtonText}>Sair</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.pointsCard}>
+        <Text style={styles.pointsLabel}>Seus DevPoints:</Text>
+        <Text style={styles.pointsValue}>{devPoints}</Text>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddPoints}>
+          <Text style={styles.addButtonText}>Adicionar 1 Ponto</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.rankingTitle}>Ranking Global</Text>
+      <View style={styles.rankingCard}>
+        {/* Placeholder for the ranking list.
+        // This will be dynamically populated with Firestore data in the next step. */}
+        <Text style={styles.rankingPlaceholderText}>
+          Aguardando dados de ranking...
+        </Text>
+        <Text style={styles.rankingPlaceholderText}>
+          (A funcionalidade de ranking será adicionada na próxima etapa)
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+};
+
 
 const App = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
-  const [firebase, setFirebase] = useState(null);
   const [isLoginView, setIsLoginView] = useState(true);
   const [message, setMessage] = useState(null);
 
+  // Monitor the user's authentication state
   useEffect(() => {
-    const firebaseInstances = initializeFirebase();
-    if (firebaseInstances) {
-      setFirebase(firebaseInstances);
-      const { auth } = firebaseInstances;
-
+    if (auth) {
       const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
         if (currentUser) {
-          console.log("Usuário autenticado:", currentUser.uid);
+          console.log("User authenticated:", currentUser.uid);
         } else {
-          console.log("Usuário deslogado.");
+          console.log("User logged out.");
         }
       });
-
       return () => unsubscribe();
     }
   }, []);
 
   const handleAuth = async () => {
-    if (!firebase) {
-      setMessage({ type: 'error', text: 'Firebase não inicializado.' });
+    if (!auth) {
+      setMessage({ type: 'error', text: 'Firebase not initialized.' });
       return;
     }
 
     if (!email || !password) {
-      setMessage({ type: 'error', text: 'E-mail e senha são obrigatórios.' });
+      setMessage({ type: 'error', text: 'Email and password are required.' });
       return;
     }
 
@@ -160,35 +171,33 @@ const App = () => {
 
     try {
       if (isLoginView) {
-        await signInWithEmailAndPassword(firebase.auth, email, password);
-        setMessage({ type: 'success', text: 'Login realizado com sucesso!' });
+        await signInWithEmailAndPassword(auth, email, password);
+        setMessage({ type: 'success', text: 'Login successful!' });
       } else {
-        await createUserWithEmailAndPassword(firebase.auth, email, password);
-        // Ao registrar com sucesso, volte para a tela de login
-        setMessage({ type: 'success', text: 'Conta criada com sucesso!' });
-        setIsLoginView(true);
+        await createUserWithEmailAndPassword(auth, email, password);
+        setMessage({ type: 'success', text: 'Account created successfully!' });
       }
     } catch (error) {
-      let errorMessage = "Ocorreu um erro. Por favor, tente novamente.";
+      let errorMessage = "An error occurred. Please try again.";
       switch (error.code) {
         case 'auth/invalid-email':
-          errorMessage = 'O endereço de e-mail é inválido.';
+          errorMessage = 'The email address is invalid.';
           break;
-        case 'auth/wrong-password':
-          errorMessage = 'Senha incorreta.';
+        case 'auth/invalid-credential':
+          errorMessage = 'Incorrect email or password.';
           break;
         case 'auth/user-not-found':
-          errorMessage = 'Usuário não encontrado. Por favor, registre-se.';
+          errorMessage = 'User not found. Please register.';
           break;
         case 'auth/email-already-in-use':
-          errorMessage = 'Este e-mail já está em uso.';
+          errorMessage = 'This email is already in use.';
           break;
         case 'auth/weak-password':
-          errorMessage = 'A senha deve ter pelo menos 6 caracteres.';
+          errorMessage = 'The password must be at least 6 characters.';
           break;
         default:
-          console.error("Erro de autenticação:", error.code, error.message);
-          errorMessage = 'Erro desconhecido. Por favor, tente novamente.';
+          console.error("Authentication error:", error.code, error.message);
+          errorMessage = 'Unknown error. Please try again.';
       }
       setMessage({ type: 'error', text: errorMessage });
     } finally {
@@ -197,8 +206,8 @@ const App = () => {
   };
 
   const handleSignOut = () => {
-    if (firebase) {
-      firebase.auth.signOut();
+    if (auth) {
+      signOut(auth);
     }
   };
 
@@ -207,23 +216,23 @@ const App = () => {
     setMessage(null);
   };
 
-  if (!firebase) {
+  if (!auth) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6a1b9a" />
-        <Text style={styles.loadingText}>Inicializando Firebase...</Text>
+        <Text style={styles.loadingText}>Initializing Firebase...</Text>
       </View>
     );
   }
 
+  // Conditional rendering: if the user is logged in, show the Dashboard. Otherwise, show the authentication screen.
   return user ? (
-    <UserProfile user={user} handleSignOut={handleSignOut} />
+    <Dashboard user={user} handleSignOut={handleSignOut} />
   ) : (
     <AuthForm
       email={email}
       setEmail={setEmail}
       password={password}
-      setPassword={setPassword}
       isLoginView={isLoginView}
       handleAuth={handleAuth}
       loading={loading}
@@ -258,19 +267,8 @@ const styles = StyleSheet.create({
     elevation: 8,
     padding: 20,
     alignItems: 'center',
-  },
-  profileCard: {
-    width: '90%',
-    maxWidth: 400,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
-    padding: 20,
-    alignItems: 'center',
+    marginTop: 50, // Added top margin
+    marginBottom: 50, // Added bottom margin
   },
   loadingContainer: {
     flex: 1,
@@ -308,6 +306,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#444',
     marginBottom: 20,
+    textAlign: 'center',
   },
   input: {
     width: '100%',
@@ -339,18 +338,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textDecorationLine: 'underline',
   },
-  profileText: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 20,
-  },
   message: {
     width: '100%',
     padding: 10,
@@ -366,6 +353,88 @@ const styles = StyleSheet.create({
   messageSuccess: {
     backgroundColor: '#e8f5e9',
     color: '#2e7d32',
+  },
+  // Dashboard Styles
+  dashboardContainer: {
+    flex: 1,
+    width: '100%',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+    paddingTop: 50, // Added top padding for the entire dashboard
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  signOutButton: {
+    padding: 10,
+    backgroundColor: '#e57373',
+    borderRadius: 8,
+  },
+  signOutButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  pointsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  pointsLabel: {
+    fontSize: 18,
+    color: '#555',
+    marginBottom: 5,
+  },
+  pointsValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#6a1b9a',
+    marginBottom: 10,
+  },
+  addButton: {
+    backgroundColor: '#4caf50',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  rankingTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#444',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  rankingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+    minHeight: 150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rankingPlaceholderText: {
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 
