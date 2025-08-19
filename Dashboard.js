@@ -10,87 +10,43 @@ import {
 } from 'firebase/firestore';
 
 // O componente Dashboard é responsável por mostrar o ranking dos usuários.
-const Dashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
+const Dashboard = ({ user, handleSignOut }) => {
+  const [devPoints, setDevPoints] = useState(0); // State for DevPoints
+  const [ranking, setRanking] = useState([]); // State for ranking
 
-  useEffect(() => {
-    // Referência para o banco de dados e a coleção de usuários
-    const db = getFirestore();
-    const usersCollectionRef = collection(db, 'users');
-    
-    // Cria a query para buscar os usuários, ordenando por pontos em ordem decrescente
-    // O 'limit(10)' limita a lista aos 10 primeiros
-    const usersQuery = query(usersCollectionRef, orderBy('devPoints', 'desc'), limit(10));
-
-    // 'onSnapshot' é um listener que atualiza os dados em tempo real
-    // Sempre que houver uma mudança na coleção de 'users', esta função é executada
-    const unsubscribe = onSnapshot(usersQuery, (querySnapshot) => {
-      try {
-        const usersList = [];
-        querySnapshot.forEach((doc) => {
-          usersList.push({ id: doc.id, ...doc.data() });
-        });
-        setUsers(usersList);
-        setLoading(false);
-      } catch (e) {
-        console.error("Erro ao carregar os dados do ranking:", e);
-        setError("Não foi possível carregar o ranking. Tente novamente mais tarde.");
-        setLoading(false);
-      }
-    }, (e) => {
-      // Este callback é para lidar com erros na própria conexão do onSnapshot
-      console.error("Erro no listener de snapshot:", e);
-      setError("Erro de conexão. Verifique sua rede.");
-      setLoading(false);
-    });
-
-    // O retorno desta função é executado quando o componente é desmontado
-    // É crucial para desativar o listener e evitar vazamento de memória
-    return () => unsubscribe();
-  }, []); // O array vazio garante que o efeito só rode uma vez
-
-  // Se a tela estiver carregando, mostra um indicador de atividade
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6a1b9a" />
-        <Text style={styles.loadingText}>Carregando ranking...</Text>
-      </View>
-    );
-  }
-
-  // Se ocorrer um erro, mostra uma mensagem de erro
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
-  // Renderiza a lista de usuários
-  const renderItem = ({ item, index }) => (
-    <View style={styles.itemContainer}>
-      <Text style={styles.rankText}>#{index + 1}</Text>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.name}</Text>
-        <Text style={styles.userId}>{item.id}</Text>
-      </View>
-      <Text style={styles.userPoints}>{item.devPoints} Pontos</Text>
-    </View>
-  );
+  // Example of how a button can increase points
+  const handleAddPoints = () => {
+    setDevPoints(currentPoints => currentPoints + 1);
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Kingdom DevPoints Ranking</Text>
-      <FlatList
-        data={users}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-      />
+    <SafeAreaView style={styles.dashboardContainer}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Bem-vindo, {user?.email}!</Text>
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutButtonText}>Sair</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.pointsCard}>
+        <Text style={styles.pointsLabel}>Seus DevPoints:</Text>
+        <Text style={styles.pointsValue}>{devPoints}</Text>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddPoints}>
+          <Text style={styles.addButtonText}>Adicionar 1 Ponto</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.rankingTitle}>Ranking Global</Text>
+      <View style={styles.rankingCard}>
+        {/* Placeholder for the ranking list.
+        // This will be dynamically populated with Firestore data in the next step. */}
+        <Text style={styles.rankingPlaceholderText}>
+          Aguardando dados de ranking...
+        </Text>
+        <Text style={styles.rankingPlaceholderText}>
+          (A funcionalidade de ranking será adicionada na próxima etapa)
+        </Text>
+      </View>
     </SafeAreaView>
   );
 };

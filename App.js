@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration variables.
 const firebaseConfig = {
@@ -17,7 +18,10 @@ const firebaseConfig = {
 let auth;
 try {
   const app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
+  // Adiciona a persistência de autenticação
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  });
 } catch (e) {
   console.error("Fatal error initializing Firebase:", e);
 }
@@ -213,6 +217,9 @@ const App = () => {
 
   const toggleView = () => {
     setIsLoginView(!isLoginView);
+    // ADICIONADO: Limpar o estado de e-mail e senha ao alternar a tela
+    setEmail('');
+    setPassword('');
     setMessage(null);
   };
 
@@ -229,10 +236,13 @@ const App = () => {
   return user ? (
     <Dashboard user={user} handleSignOut={handleSignOut} />
   ) : (
+    // ADICIONADO: A prop 'key' força o componente a ser recriado quando a view muda
     <AuthForm
+      key={isLoginView ? 'loginForm' : 'signupForm'}
       email={email}
       setEmail={setEmail}
       password={password}
+      setPassword={setPassword}
       isLoginView={isLoginView}
       handleAuth={handleAuth}
       loading={loading}
