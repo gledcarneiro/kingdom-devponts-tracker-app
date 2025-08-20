@@ -1,33 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView, FlatList } from 'react-native';
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, getDocs } from 'firebase/firestore';
 
-// Firebase configuration variables.
-const firebaseConfig = {
-  apiKey: "AIzaSyAted6ls2JRLmlbAWpWnbNqr8lqvRiqNtY",
-  authDomain: "kingdom-devponts-tracker.firebaseapp.com",
-  projectId: "kingdom-devponts-tracker",
-  storageBucket: "kingdom-devponts-tracker.firebasestorage.app",
-  messagingSenderId: "285976466192",
-  appId: "1:285976466192:web:8c754a66ebb61dca044b95"
+// Cria um contexto para compartilhar as instâncias de Auth e Firestore
+const FirebaseContext = createContext(null);
+
+// Componente Provedor do Firebase
+const FirebaseProvider = ({ children }) => {
+  const [auth, setAuth] = useState(null);
+  const [db, setDb] = useState(null);
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+
+  useEffect(() => {
+    // Configurações do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAted6ls2JRLmlbAWpWnbNqr8lqvRiqNtY",
+      authDomain: "kingdom-devponts-tracker.firebaseapp.com",
+      projectId: "kingdom-devponts-tracker",
+      storageBucket: "kingdom-devponts-tracker.firebasestorage.app",
+      messagingSenderId: "285976466192",
+      appId: "1:285976466192:web:8c754a66ebb61dca044b95"
+    };
+
+    let firebaseAuth;
+    let firebaseDb;
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      // Inicializa a autenticação com persistência
+      firebaseAuth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+      // Inicializa o Firestore
+      firebaseDb = getFirestore(app);
+
+      setAuth(firebaseAuth);
+      setDb(firebaseDb);
+
+    } catch (e) {
+      console.error("Fatal error initializing Firebase:", e);
+      // Exibe uma mensagem de erro na tela se a inicialização falhar
+      setIsFirebaseReady(true);
+      return;
+    }
+
+    // Listener para o estado de autenticação
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+      setIsFirebaseReady(true); // O Firebase está pronto para uso
+    });
+
+    // Limpeza do listener ao desmontar o componente
+    return () => unsubscribe();
+  }, []); // Executa apenas uma vez na montagem
+
+  // Se o Firebase ainda não estiver pronto, exibe uma tela de carregamento
+  if (!isFirebaseReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6a1b9a" />
+        <Text style={styles.loadingText}>Iniciando Firebase...</Text>
+      </View>
+    );
+  }
+
+  // Se o Firebase estiver pronto, fornece os valores para os componentes filhos
+  return (
+    <FirebaseContext.Provider value={{ auth, db }}>
+      {children}
+    </FirebaseContext.Provider>
+  );
 };
 
-// Initialize Firebase ONE TIME
-let auth;
-try {
-  const app = initializeApp(firebaseConfig);
-  // Adiciona a persistência de autenticação
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-  });
-} catch (e) {
-  console.error("Fatal error initializing Firebase:", e);
-}
-
-
-// Component for the login/signup form
+// Componente para o formulário de login/cadastro
 const AuthForm = ({ email, setEmail, password, setPassword, isLoginView, handleAuth, loading, toggleView, message }) => (
   <KeyboardAvoidingView
     style={styles.container}
@@ -92,16 +139,72 @@ const AuthForm = ({ email, setEmail, password, setPassword, isLoginView, handleA
   </KeyboardAvoidingView>
 );
 
-
-// Main Dashboard component
+// Componente do Dashboard
 const Dashboard = ({ user, handleSignOut }) => {
-  const [devPoints, setDevPoints] = useState(0); // State for DevPoints
-  const [ranking, setRanking] = useState([]); // State for ranking
+  const [devPoints, setDevPoints] = useState(0);
+  const [ranking, setRanking] = useState([]);
+  const { db } = useContext(FirebaseContext);
 
-  // Example of how a button can increase points
-  const handleAddPoints = () => {
-    setDevPoints(currentPoints => currentPoints + 1);
+  useEffect(() => {
+    if (!user || !db) return;
+
+    // Função para buscar os pontos do usuário
+    const fetchUserPoints = async () => {
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setDevPoints(docSnap.data().devPoints);
+        } else {
+          await setDoc(docRef, { email: user.email, devPoints: 0 });
+          setDevPoints(0);
+        }
+      } catch (e) {
+        console.error("Erro ao buscar pontos do usuário:", e);
+      }
+    };
+
+    // Função para buscar o ranking em tempo real
+    const fetchRanking = () => {
+      const q = query(collection(db, "users"));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const usersList = [];
+        querySnapshot.forEach((doc) => {
+          usersList.push({ id: doc.id, ...doc.data() });
+        });
+        usersList.sort((a, b) => b.devPoints - a.devPoints);
+        setRanking(usersList);
+      });
+      return unsubscribe;
+    };
+
+    fetchUserPoints();
+    const unsubscribeRanking = fetchRanking();
+
+    return () => {
+      if (unsubscribeRanking) unsubscribeRanking();
+    };
+  }, [user, db]);
+
+  const handleAddPoints = async () => {
+    if (!user || !db) return;
+    try {
+      const newPoints = devPoints + 1;
+      const docRef = doc(db, "users", user.uid);
+      await setDoc(docRef, { devPoints: newPoints }, { merge: true });
+      setDevPoints(newPoints);
+    } catch (e) {
+      console.error("Erro ao adicionar pontos:", e);
+    }
   };
+
+  const renderRankingItem = ({ item, index }) => (
+    <View style={styles.rankingItem}>
+      <Text style={styles.rankingPosition}>{index + 1}.</Text>
+      <Text style={styles.rankingEmail}>{item.email}</Text>
+      <Text style={styles.rankingPoints}>{item.devPoints} Pontos</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.dashboardContainer}>
@@ -122,19 +225,20 @@ const Dashboard = ({ user, handleSignOut }) => {
 
       <Text style={styles.rankingTitle}>Ranking Global</Text>
       <View style={styles.rankingCard}>
-        {/* Placeholder for the ranking list.
-        // This will be dynamically populated with Firestore data in the next step. */}
-        <Text style={styles.rankingPlaceholderText}>
-          Aguardando dados de ranking...
-        </Text>
-        <Text style={styles.rankingPlaceholderText}>
-          (A funcionalidade de ranking será adicionada na próxima etapa)
-        </Text>
+        <FlatList
+          data={ranking}
+          renderItem={renderRankingItem}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={() => (
+            <Text style={styles.rankingPlaceholderText}>
+              Nenhum usuário no ranking ainda.
+            </Text>
+          )}
+        />
       </View>
     </SafeAreaView>
   );
 };
-
 
 const App = () => {
   const [email, setEmail] = useState('');
@@ -144,29 +248,25 @@ const App = () => {
   const [isLoginView, setIsLoginView] = useState(true);
   const [message, setMessage] = useState(null);
 
-  // Monitor the user's authentication state
+  const { auth, db } = useContext(FirebaseContext);
+
   useEffect(() => {
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
-        if (currentUser) {
-          console.log("User authenticated:", currentUser.uid);
-        } else {
-          console.log("User logged out.");
-        }
       });
       return () => unsubscribe();
     }
-  }, []);
+  }, [auth]);
 
   const handleAuth = async () => {
     if (!auth) {
-      setMessage({ type: 'error', text: 'Firebase not initialized.' });
+      setMessage({ type: 'error', text: 'Firebase não está inicializado.' });
       return;
     }
 
     if (!email || !password) {
-      setMessage({ type: 'error', text: 'Email and password are required.' });
+      setMessage({ type: 'error', text: 'Email e senha são obrigatórios.' });
       return;
     }
 
@@ -176,32 +276,32 @@ const App = () => {
     try {
       if (isLoginView) {
         await signInWithEmailAndPassword(auth, email, password);
-        setMessage({ type: 'success', text: 'Login successful!' });
+        setMessage({ type: 'success', text: 'Login realizado com sucesso!' });
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
-        setMessage({ type: 'success', text: 'Account created successfully!' });
+        setMessage({ type: 'success', text: 'Conta criada com sucesso!' });
       }
     } catch (error) {
-      let errorMessage = "An error occurred. Please try again.";
+      let errorMessage = "Ocorreu um erro. Tente novamente.";
       switch (error.code) {
         case 'auth/invalid-email':
-          errorMessage = 'The email address is invalid.';
+          errorMessage = 'O endereço de e-mail é inválido.';
           break;
         case 'auth/invalid-credential':
-          errorMessage = 'Incorrect email or password.';
+          errorMessage = 'E-mail ou senha incorretos.';
           break;
         case 'auth/user-not-found':
-          errorMessage = 'User not found. Please register.';
+          errorMessage = 'Usuário não encontrado. Por favor, registre-se.';
           break;
         case 'auth/email-already-in-use':
-          errorMessage = 'This email is already in use.';
+          errorMessage = 'Este e-mail já está em uso.';
           break;
         case 'auth/weak-password':
-          errorMessage = 'The password must be at least 6 characters.';
+          errorMessage = 'A senha deve ter pelo menos 6 caracteres.';
           break;
         default:
           console.error("Authentication error:", error.code, error.message);
-          errorMessage = 'Unknown error. Please try again.';
+          errorMessage = 'Erro desconhecido. Tente novamente.';
       }
       setMessage({ type: 'error', text: errorMessage });
     } finally {
@@ -217,7 +317,6 @@ const App = () => {
 
   const toggleView = () => {
     setIsLoginView(!isLoginView);
-    // ADICIONADO: Limpar o estado de e-mail e senha ao alternar a tela
     setEmail('');
     setPassword('');
     setMessage(null);
@@ -227,16 +326,14 @@ const App = () => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6a1b9a" />
-        <Text style={styles.loadingText}>Initializing Firebase...</Text>
+        <Text style={styles.loadingText}>Iniciando Firebase...</Text>
       </View>
     );
   }
 
-  // Conditional rendering: if the user is logged in, show the Dashboard. Otherwise, show the authentication screen.
   return user ? (
     <Dashboard user={user} handleSignOut={handleSignOut} />
   ) : (
-    // ADICIONADO: A prop 'key' força o componente a ser recriado quando a view muda
     <AuthForm
       key={isLoginView ? 'loginForm' : 'signupForm'}
       email={email}
@@ -277,8 +374,8 @@ const styles = StyleSheet.create({
     elevation: 8,
     padding: 20,
     alignItems: 'center',
-    marginTop: 50, // Added top margin
-    marginBottom: 50, // Added bottom margin
+    marginTop: 50,
+    marginBottom: 50,
   },
   loadingContainer: {
     flex: 1,
@@ -370,7 +467,7 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 20,
     backgroundColor: '#f5f5f5',
-    paddingTop: 50, // Added top padding for the entire dashboard
+    paddingTop: 50,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -438,14 +535,44 @@ const styles = StyleSheet.create({
     elevation: 8,
     minHeight: 150,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   rankingPlaceholderText: {
     color: '#888',
     fontStyle: 'italic',
     textAlign: 'center',
     lineHeight: 20,
+    paddingVertical: 20,
   },
+  rankingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  rankingPosition: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#6a1b9a',
+    width: 30,
+  },
+  rankingEmail: {
+    flex: 1,
+    fontSize: 16,
+    color: '#555',
+  },
+  rankingPoints: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4caf50',
+  }
 });
 
-export default App;
+const AppWrapper = () => (
+  <FirebaseProvider>
+    <App />
+  </FirebaseProvider>
+);
+
+export default AppWrapper;
