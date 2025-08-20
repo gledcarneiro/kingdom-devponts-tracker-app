@@ -12,6 +12,7 @@ import {
 
 // Importa o novo componente do carrossel
 import TerrainsCarousel from './TerrainsCarousel';
+import { APP_ID } from './firebaseConfig'; // Importa o APP_ID centralizado
 
 // O componente para renderizar um item do ranking
 const RankingItem = ({ item }) => (
@@ -32,10 +33,10 @@ const Dashboard = ({ user, handleSignOut, db }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!db) return;
+    // Garante que tanto o Firestore quanto o usuário estejam prontos
+    if (!db || !user) return;
 
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const rankingCollectionRef = collection(db, `/artifacts/${appId}/public/data/ranking`);
+    const rankingCollectionRef = collection(db, `/artifacts/${APP_ID}/public/data/ranking`);
 
     const unsubscribe = onSnapshot(rankingCollectionRef, (snapshot) => {
       const data = [];
@@ -61,7 +62,8 @@ const Dashboard = ({ user, handleSignOut, db }) => {
     });
 
     return () => unsubscribe();
-  }, [db]);
+  // Adiciona `user` como dependência para reativar o efeito quando o usuário fizer login
+  }, [db, user]);
 
   if (loading) {
     return (
