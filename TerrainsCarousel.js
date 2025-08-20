@@ -1,38 +1,42 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
 
 // Dados dos terrenos que você forneceu.
 const terrenosData = [
   { id: '158489', name: 'Planície Verdejante', level: 4, points: 1807575 },
   { id: '158233', name: 'Montanhas do Dragão', level: 5, points: 1543200 },
-  { id: '3', name: 'Floresta Sombria', level: 3, points: 987650 },
-  { id: '4', name: 'Ilha Flutuante', level: 6, points: 2100500 },
+  { id: '158325', name: 'Floresta Sombria', level: 3, points: 987650 },
+  { id: '158424', name: 'Ilha Flutuante', level: 6, points: 2100500 },
 ];
 
 // O componente para renderizar cada item do carrossel.
-const TerrenoItem = ({ item }) => (
-  <TouchableOpacity style={styles.terrenoCard}>
-    {/* Contêiner da imagem e informações */}
-    <View style={styles.cardContent}>
-      {/* Contêiner de pontos no topo */}
-      <View style={styles.pointsContainer}>
-        <Text style={styles.pointsText}>{item.points.toLocaleString()}</Text>
-      </View>
-      {/* Imagem do terreno - Usamos um placeholder pois não temos a imagem local */}
-      <Image
-        source={{ uri: 'https://placehold.co/200x200/cccccc/000000?text=Terreno' }}
-        style={styles.terrenoImage}
-      />
-      {/* Informações na parte inferior */}
-      <View style={styles.bottomInfoContainer}>
-        <Text style={styles.levelText}>{item.level}</Text>
-        <View style={styles.idContainer}>
-          <Text style={styles.idText}>#{item.id}</Text>
+const TerrenoItem = ({ item }) => {
+  // Usamos require para carregar a imagem local.
+  // O caminho é relativo à localização deste arquivo (TerrainsCarousel.js).
+  const backgroundImage = require('./assets/land.png');
+
+  return (
+    <TouchableOpacity>
+      <ImageBackground
+        source={backgroundImage}
+        style={styles.terrenoCard}
+        imageStyle={styles.cardBackgroundImage}
+      >
+        <View style={styles.cardContent}>
+          <View style={styles.pointsContainer}>
+            <Text style={styles.pointsText}>{item.points.toLocaleString()}</Text>
+          </View>
+          <View style={styles.bottomInfoContainer}>
+            <Text style={styles.levelText}>{item.level}</Text>
+            <View style={styles.idContainer}>
+              <Text style={styles.idText}>#{item.id}</Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </View>
-  </TouchableOpacity>
-);
+      </ImageBackground>
+    </TouchableOpacity>
+  );
+};
 
 // O componente do carrossel
 const TerrainsCarousel = () => {
@@ -65,7 +69,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   terrenoCard: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     marginHorizontal: 10,
     shadowColor: '#000',
@@ -74,51 +77,54 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
     width: 135, // Diminuído para ser mais compacto
+    height: 135,
+    overflow: 'hidden', // Garante que a imagem com borda arredondada não vaze
+  },
+  cardBackgroundImage: {
+    resizeMode: 'cover',
   },
   cardContent: {
-    padding: 8,
-    position: 'relative',
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // Overlay escuro para contraste
+    padding: 8, // Reduzido para dar mais espaço
+    justifyContent: 'space-between',
   },
-  pointsContainer: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1,
+  pointsContainer: { // conteiner devpoints
+    backgroundColor: 'rgba(110, 108, 108, 0.12)',
+    paddingVertical: 2,
+    paddingHorizontal: 27,
+    borderRadius: 5,
+    alignSelf: 'flex-start', // Alinha à direita no topo
   },
-  pointsText: {
-    color: '#fff',
+  pointsText: { //texto devpoints
+    color: '#ffffffff',
     fontWeight: 'bold',
-    fontSize: 12,
-  },
-  terrenoImage: {
-    width: '100%',
-    height: 85, // Altura da imagem reduzida
-    borderRadius: 10,
-    resizeMode: 'cover',
+    fontSize: 14,
   },
   bottomInfoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
   },
-  levelText: {
-    fontSize: 20, // Tamanho da fonte do nível reduzido
+  levelText: {   // text level
+    fontSize: 35,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000000ff', // Texto branco para contraste
   },
-  idContainer: {
-    backgroundColor: '#000',
-    padding: 5,
+  // seria bom um text conteiner
+  
+  idContainer: {  // conteiner ID
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 1,
     borderRadius: 5,
+    alignSelf: 'flex-end',
+    paddingHorizontal: 1,
   },
-  idText: {
+  idText: { //texto ID
     color: '#fff',
-    fontSize: 10,
+    fontSize: 17,
+    fontWeight: 'bold',
+    textAlign: 'center',    
   },
 });
 
