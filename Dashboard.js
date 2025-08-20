@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getFirestore,
   collection,
@@ -15,20 +16,44 @@ import TerrainsCarousel from './TerrainsCarousel';
 import { APP_ID } from './firebaseConfig'; // Importa o APP_ID centralizado
 
 // O componente para renderizar um item do ranking
-const RankingItem = ({ item }) => (
-  <View style={styles.rankingItem}>
-    <View style={styles.rankingPosition}>
-      <Text style={styles.rankingPositionText}>#{item.position}</Text>
+const RankingItem = ({ item }) => {
+  const isTopThree = item.position <= 3;
+
+  // Define o estilo do círculo de posição com base na classificação
+  const getPositionStyle = () => {
+    switch (item.position) {
+      case 1:
+        return [styles.rankingPosition, styles.gold];
+      case 2:
+        return [styles.rankingPosition, styles.silver];
+      case 3:
+        return [styles.rankingPosition, styles.bronze];
+      default:
+        return styles.rankingPosition;
+    }
+  };
+
+  // Adiciona um destaque sutil para os itens do top 3
+  const itemStyle = isTopThree ? [styles.rankingItem, styles.topRankingItem] : styles.rankingItem;
+  // Deixa o nome dos jogadores do top 3 em negrito
+  const nameStyle = isTopThree ? [styles.rankingName, styles.topRankingName] : styles.rankingName;
+
+  return (
+    <View style={itemStyle}>
+      <View style={getPositionStyle()}>
+        <Text style={styles.rankingPositionText}>#{item.position}</Text>
+      </View>
+      <View style={styles.rankingInfo}>
+        <Text style={nameStyle}>{item.name}</Text>
+        <Text style={styles.rankingTotal}>{item.total.toFixed(2)}</Text>
+      </View>
     </View>
-    <View style={styles.rankingInfo}>
-      <Text style={styles.rankingName}>{item.name}</Text>
-      <Text style={styles.rankingTotal}>{item.total.toFixed(2)}</Text>
-    </View>
-  </View>
-);
+  );
+};
 
 // O componente Dashboard é responsável por mostrar o ranking dos usuários.
 const Dashboard = ({ user, handleSignOut, db }) => {
+  const insets = useSafeAreaInsets();
   const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,7 +92,10 @@ const Dashboard = ({ user, handleSignOut, db }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[
+        styles.loadingContainer,
+        { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }
+      ]}>
         <ActivityIndicator size="large" color="#6a1b9a" />
         <Text style={styles.loadingText}>Carregando Ranking...</Text>
       </View>
@@ -75,7 +103,11 @@ const Dashboard = ({ user, handleSignOut, db }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[
+      styles.container,
+      // Aplicamos os insets como padding para garantir que o conteúdo não fique sob as barras do sistema
+      { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }
+    ]}>
       {/* Container do cabeçalho */}
       <View style={styles.headerContainer}>
         <Text style={styles.header}>Bem-vindo, {user?.email}!</Text>
@@ -101,7 +133,7 @@ const Dashboard = ({ user, handleSignOut, db }) => {
           <Text style={styles.rankingPlaceholderText}>Ainda não há dados de ranking.</Text>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -177,7 +209,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
-    paddingHorizontal: 20,
   },
   rankingCard: {
     backgroundColor: '#fff',
@@ -200,6 +231,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   rankingItem: {
+    marginHorizontal: 15, // Adiciona margem para alinhar com o resto do conteúdo
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -212,6 +244,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  topRankingItem: {
+    // Borda sutil para destacar os 3 primeiros
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+  },
   rankingPosition: {
     width: 40,
     height: 40,
@@ -220,6 +257,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#6a1b9a',
     marginRight: 15,
+  },
+  gold: {
+    backgroundColor: '#FFD700', // Ouro
+  },
+  silver: {
+    backgroundColor: '#C0C0C0', // Prata
+  },
+  bronze: {
+    backgroundColor: '#CD7F32', // Bronze
   },
   rankingPositionText: {
     color: '#fff',
@@ -232,6 +278,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  topRankingName: {
+    fontWeight: '700', // Negrito para os nomes do top 3
   },
   rankingTotal: {
     fontSize: 14,

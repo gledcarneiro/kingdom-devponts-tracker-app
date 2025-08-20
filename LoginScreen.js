@@ -10,11 +10,13 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseContext } from './FirebaseContext'; // Importa o contexto
 
 const LoginScreen = () => {
   const { auth } = useContext(FirebaseContext);
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -44,37 +46,43 @@ const LoginScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView contentContainerStyle={styles.loginContainer}>
-        <Text style={styles.title}>Bem-vindo!</Text>
-        <Text style={styles.subtitle}>Faça login para continuar</Text>
+    <View style={[
+      styles.container,
+      // Aplicamos os insets como padding para garantir que o conteúdo não fique sob as barras do sistema
+      { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }
+    ]}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView contentContainerStyle={styles.loginContainer}>
+          <Text style={styles.title}>Bem-vindo!</Text>
+          <Text style={styles.subtitle}>Faça login para continuar</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="E-mail"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="E-mail"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Senha"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-        {error && <Text style={styles.errorTextLogin}>{error}</Text>}
+          {error && <Text style={styles.errorTextLogin}>{error}</Text>}
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Entrar</Text>}
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Entrar</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 

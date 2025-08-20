@@ -54,15 +54,15 @@ const TerrainsCarousel = () => {
 
 const styles = StyleSheet.create({
   carouselTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#444',
-    marginBottom: 10,
-    marginTop: 20,
+    marginBottom: 8,
+    marginTop: 15,
     textAlign: 'center',
   },
   carouselScrollView: {
-    paddingVertical: 10,
+    paddingVertical: 5,
   },
   terrenoCard: {
     backgroundColor: '#fff',
@@ -73,10 +73,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 8,
-    width: 200,
+    width: 135, // Diminuído para ser mais compacto
   },
   cardContent: {
-    padding: 10,
+    padding: 8,
     position: 'relative',
   },
   pointsContainer: {
@@ -85,17 +85,18 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     position: 'absolute',
-    top: 15,
-    right: 15,
+    top: 10,
+    right: 10,
     zIndex: 1,
   },
   pointsText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 12,
   },
   terrenoImage: {
     width: '100%',
-    height: 180,
+    height: 85, // Altura da imagem reduzida
     borderRadius: 10,
     resizeMode: 'cover',
   },
@@ -103,10 +104,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   levelText: {
-    fontSize: 24,
+    fontSize: 20, // Tamanho da fonte do nível reduzido
     fontWeight: 'bold',
     color: '#333',
   },
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
   },
   idText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
   },
 });
 

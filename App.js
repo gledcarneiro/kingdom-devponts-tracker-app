@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, onAuthStateChanged, signOut } from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
@@ -144,9 +145,11 @@ const MainApp = () => {
 
 // Componente raiz do aplicativo
 const App = () => (
-  <FirebaseProvider>
-    <MainApp />
-  </FirebaseProvider>
+  <SafeAreaProvider>
+    <FirebaseProvider>
+      <MainApp />
+    </FirebaseProvider>
+  </SafeAreaProvider>
 );
 
 const styles = StyleSheet.create({
