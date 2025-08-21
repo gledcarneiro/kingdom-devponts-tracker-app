@@ -47,7 +47,7 @@ const RankingItem = ({ item }) => {
       </View>
       <View style={styles.rankingInfo}>
         <Text style={nameStyle}>{item.name}</Text>
-        <Text style={styles.rankingTotal}>{item.total.toFixed(2)}</Text>
+        <Text style={styles.rankingTotal}>{item.points.toLocaleString()}</Text>
       </View>
     </View>
   );
@@ -61,10 +61,9 @@ const Dashboard = ({ user, handleSignOut, db }) => {
   const [selectedLandId, setSelectedLandId] = useState('158489');
 
   useEffect(() => {
-    // Garante que tanto o Firestore quanto o usuário estejam prontos
     if (!db || !user) return;
 
-    const rankingCollectionRef = collection(db, `/artifacts/${APP_ID}/public/data/ranking`);
+    const rankingCollectionRef = collection(db, `lands/${selectedLandId}/ranking`);
 
     const unsubscribe = onSnapshot(rankingCollectionRef, (snapshot) => {
       const data = [];
@@ -75,8 +74,10 @@ const Dashboard = ({ user, handleSignOut, db }) => {
         });
       });
 
-      const sortedData = data.sort((a, b) => b.total - a.total);
+      // Ordena pelo campo 'total'
+      const sortedData = data.sort((a, b) => b.points - a.points);
 
+      // Adiciona posição
       const rankingWithPosition = sortedData.map((item, index) => ({
         ...item,
         position: index + 1
@@ -90,8 +91,7 @@ const Dashboard = ({ user, handleSignOut, db }) => {
     });
 
     return () => unsubscribe();
-  // Adiciona `user` como dependência para reativar o efeito quando o usuário fizer login
-  }, [db, user]);
+  }, [db, user, selectedLandId]);
 
   const handleUpdateRanking = async (landId) => {
     try {
@@ -136,7 +136,9 @@ const Dashboard = ({ user, handleSignOut, db }) => {
       />
 
       {/* Lista de Ranking Global */}
-      <Text style={styles.rankingTitle}>Ranking Global</Text>
+      <Text style={styles.rankingTitle}>
+        Ranking: {selectedLandId}
+      </Text>
       {ranking.length > 0 ? (
         <FlatList
           data={ranking}

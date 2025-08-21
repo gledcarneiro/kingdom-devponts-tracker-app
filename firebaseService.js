@@ -22,7 +22,7 @@ export const updateLandRankingInFirebase = async (landId, contributions) => {
     // Mapeamos os dados da API para a estrutura que queremos no Firebase
     const rankingData = {
       name: contribution.name,
-      points: contribution.total, // Mapeando 'total' para 'points'
+      total: contribution.total,
       continent: contribution.continent,
     };
     batch.set(kingdomDocRef, rankingData, { merge: true });

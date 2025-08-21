@@ -4,11 +4,15 @@
  * @returns {Promise<Array|null>} Um array com os dados de contribuição ou null em caso de erro.
  */
 export const fetchLandContribution = async (landId) => {
-  // As datas podem ser dinâmicas, mas para este exemplo, vamos usar uma data fixa.
-  // Em um cenário real, você poderia usar a data atual.
-  const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+  // Data final: hoje
+  const today = new Date();
+  const to = today.toISOString().split('T')[0]; // 'YYYY-MM-DD'
 
-  const url = `https://api-lok-live.leagueofkingdoms.com/api/stat/land/contribution?landId=${landId}&from=${today}&to=${today}`;
+  // Data inicial: 5 dias atrás
+  const fiveDaysAgo = new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000);
+  const from = fiveDaysAgo.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+  const url = `https://api-lok-live.leagueofkingdoms.com/api/stat/land/contribution?landId=${landId}&from=${from}&to=${to}`;
 
   try {
     const response = await fetch(url);
