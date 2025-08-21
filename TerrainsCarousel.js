@@ -10,13 +10,14 @@ const terrenosData = [
 ];
 
 // O componente para renderizar cada item do carrossel.
-const TerrenoItem = ({ item, onSelect }) => {
-  // Usamos require para carregar a imagem local.
-  // O caminho é relativo à localização deste arquivo (TerrainsCarousel.js).
+const TerrenoItem = ({ item, onSelect, onUpdate }) => {
   const backgroundImage = require('./assets/land.png');
 
   return (
-    <TouchableOpacity onPress={() => onSelect(item.id)}>
+    <TouchableOpacity
+      onPress={() => onSelect(item.id)}
+      onLongPress={() => onUpdate && onUpdate(item.id)} // <-- Adicionado aqui!
+    >
       <ImageBackground
         source={backgroundImage}
         style={styles.terrenoCard}
@@ -39,7 +40,7 @@ const TerrenoItem = ({ item, onSelect }) => {
 };
 
 // O componente do carrossel
-const TerrainsCarousel = ({ onSelectLand }) => {
+const TerrainsCarousel = ({ onSelectLand, onUpdateRanking }) => {
   return (
     <View>
       <Text style={styles.carouselTitle}>Terrenos Disponíveis</Text>
@@ -49,7 +50,12 @@ const TerrainsCarousel = ({ onSelectLand }) => {
         style={styles.carouselScrollView}
       >
         {terrenosData.map((item) => (
-          <TerrenoItem key={item.id} item={item} onSelect={onSelectLand} />
+          <TerrenoItem
+            key={item.id}
+            item={item}
+            onSelect={onSelectLand}
+            onUpdate={onUpdateRanking} // <-- Passe a função aqui!
+          />
         ))}
       </ScrollView>
     </View>

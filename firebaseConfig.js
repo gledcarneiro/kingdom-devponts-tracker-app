@@ -16,4 +16,4 @@ export const db = getFirestore(app);
 
 // Centraliza a lógica do App ID para ser usada em todo o aplicativo.
 // Isso evita duplicação de código e garante consistência.
-export const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+export const APP_ID = 'default-app-id'; // ou o valor correto do seu app
