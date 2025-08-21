@@ -6,17 +6,17 @@ const terrenosData = [
   { id: '158489', name: 'Planície Verdejante', level: 4, points: 1807575 },
   { id: '158233', name: 'Montanhas do Dragão', level: 5, points: 1543200 },
   { id: '158325', name: 'Floresta Sombria', level: 3, points: 987650 },
-  { id: '158424', name: 'Ilha Flutuante', level: 6, points: 2100500 },
+  { id: '136195', name: 'Ilha Flutuante', level: 6, points: 2100500 },
 ];
 
 // O componente para renderizar cada item do carrossel.
-const TerrenoItem = ({ item }) => {
+const TerrenoItem = ({ item, onSelect }) => {
   // Usamos require para carregar a imagem local.
   // O caminho é relativo à localização deste arquivo (TerrainsCarousel.js).
   const backgroundImage = require('./assets/land.png');
 
   return (
-    <TouchableOpacity>
+    <TouchableOpacity onPress={() => onSelect(item.id)}>
       <ImageBackground
         source={backgroundImage}
         style={styles.terrenoCard}
@@ -39,7 +39,7 @@ const TerrenoItem = ({ item }) => {
 };
 
 // O componente do carrossel
-const TerrainsCarousel = () => {
+const TerrainsCarousel = ({ onSelectLand }) => {
   return (
     <View>
       <Text style={styles.carouselTitle}>Terrenos Disponíveis</Text>
@@ -49,7 +49,7 @@ const TerrainsCarousel = () => {
         style={styles.carouselScrollView}
       >
         {terrenosData.map((item) => (
-          <TerrenoItem key={item.id} item={item} />
+          <TerrenoItem key={item.id} item={item} onSelect={onSelectLand} />
         ))}
       </ScrollView>
     </View>

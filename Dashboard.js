@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Button } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getFirestore,
@@ -14,6 +14,8 @@ import {
 // Importa o novo componente do carrossel
 import TerrainsCarousel from './TerrainsCarousel';
 import { APP_ID } from './firebaseConfig'; // Importa o APP_ID centralizado
+import { updateLandRankingInFirebase } from './services/firebaseService';
+import { fetchLandContribution } from './services/apiService';
 
 // O componente para renderizar um item do ranking
 const RankingItem = ({ item }) => {
@@ -56,6 +58,7 @@ const Dashboard = ({ user, handleSignOut, db }) => {
   const insets = useSafeAreaInsets();
   const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLandId, setSelectedLandId] = useState('158489'); // valor inicial
 
   useEffect(() => {
     // Garante que tanto o Firestore quanto o usuário estejam prontos
@@ -90,6 +93,16 @@ const Dashboard = ({ user, handleSignOut, db }) => {
   // Adiciona `user` como dependência para reativar o efeito quando o usuário fizer login
   }, [db, user]);
 
+  const handleUpdateRanking = async () => {
+    try {
+      const contributions = await fetchLandContribution(selectedLandId);
+      await updateLandRankingInFirebase(selectedLandId, contributions);
+      alert('Ranking atualizado com sucesso!');
+    } catch (error) {
+      alert('Erro ao atualizar ranking: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[
@@ -117,7 +130,10 @@ const Dashboard = ({ user, handleSignOut, db }) => {
       </View>
 
       {/* Carrossel dos terrenos */}
-      <TerrainsCarousel />
+      <TerrainsCarousel onSelectLand={setSelectedLandId} />
+
+      {/* Botão para atualizar ranking */}
+      <Button title="Atualizar Ranking" onPress={handleUpdateRanking} />
 
       {/* Lista de Ranking Global */}
       <Text style={styles.rankingTitle}>Ranking Global</Text>
