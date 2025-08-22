@@ -19,7 +19,8 @@ import TerrainsCarousel from './TerrainsCarousel';
 import { updateLandRankingInFirebase } from './services/firebaseService'; // Keep for long press update
 import { fetchLandContribution } from './services/apiService'; // Keep for long press update
 import { APP_ID } from './firebaseConfig'; // Keep if still used
-import AddTerrainModal from './AddTerrainModal'; // Importa o modal (será usado para adicionar e confirmar exclusão)
+import AddTerrainModal from './AddTerrainModal'; // Importa o modal de adição
+import DeleteConfirmationModal from './DeleteConfirmationModal'; // Importa o novo modal de exclusão
 
 // O componente para renderizar um item do ranking
 const RankingItem = ({ item }) => {
@@ -66,7 +67,8 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   const [rankingLoading, setRankingLoading] = useState(false); // State to indicate if ranking is loading
   const [selectedLandId, setSelectedLandId] = useState(null); // Initially null, will be set by carousel
   const [isAddModalVisible, setIsAddModalVisible] = useState(false); // State to control Add modal visibility
-  const [isDeleteConfirmationVisible, setIsDeleteConfirmationVisible] = useState(false); // State to control Delete modal visibility
+  // Renomeamos isDeleteConfirmationVisible para isDeleteModalVisible para maior clareza
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false); // State to control Delete modal visibility
   const [terrainToDeleteId, setTerrainToDeleteId] = useState(null); // State to store ID of terrain to delete
 
 
@@ -275,7 +277,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
     }
   };
 
-  // Função para remover Terreno do Firebase (chamada após confirmação)
+  // Função para remover Terreno do Firebase (chamada após confirmação do novo modal)
   const removeTerrainFromFirebase = async (landId) => {
       if (!db || !user) {
           console.error("Database ou usuário não pronto para remover terreno.");
@@ -299,14 +301,14 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
           // Após remover, limpamos o ID do terreno a ser deletado e fechamos o modal
           setTerrainToDeleteId(null);
-          setIsDeleteConfirmationVisible(false);
+          setIsDeleteModalVisible(false); // Usa o novo estado
 
       } catch (error) {
           console.error("Erro ao remover terreno do Firebase:", error);
           Alert.alert("Erro", "Erro ao remover terreno. Tente novamente."); // Usando Alert nativo
           // Fechamos o modal mesmo em caso de erro
           setTerrainToDeleteId(null);
-          setIsDeleteConfirmationVisible(false);
+          setIsDeleteModalVisible(false); // Usa o novo estado
       }
   };
 
@@ -325,15 +327,17 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
               const terrainToConfirm = userTerrains.find(t => t.id === selectedLandId && !t.isAddNewCard && !t.isDeleteCard);
               if (terrainToConfirm) {
                  setTerrainToDeleteId(selectedLandId); // Armazena o ID para exclusão
-                 setIsDeleteConfirmationVisible(true); // Abre o modal de confirmação
+                 setIsDeleteModalVisible(true); // Abre o modal de confirmação (usando o novo estado)
                  console.log(`Exibindo modal de confirmação para remover terreno com ID: ${selectedLandId}`);
               } else {
                  console.log("Nenhum terreno real selecionado válido para apagar.");
                  Alert.alert("Atenção", "Selecione um terreno válido no carrossel para poder apagá-lo.");
+                 setSelectedLandId(null); // Opcional: deseleciona o card de apagar
               }
           } else {
               console.log("Nenhum terreno real selecionado para apagar.");
               Alert.alert("Atenção", "Selecione um terreno no carrossel para poder apagá-lo.");
+              setSelectedLandId(null); // Opcional: deseleciona o card de apagar
           }
           // Não seleciona o card de apagar como selectedLandId
       }
@@ -347,37 +351,34 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
     setIsAddModalVisible(false); // Fecha o modal de adição
   };
 
-  // Funções para o modal de confirmação de exclusão
+  // Funções para o novo modal de confirmação de exclusão
   const handleConfirmDelete = () => {
       if (terrainToDeleteId) {
           removeTerrainFromFirebase(terrainToDeleteId); // Chama a função de remoção
       } else {
           console.error("Tentativa de confirmar exclusão sem um terreno selecionado.");
           Alert.alert("Erro", "Não foi possível identificar o terreno para excluir.");
-          setIsDeleteConfirmationVisible(false); // Fecha o modal
+          setIsDeleteModalVisible(false); // Fecha o modal (usando o novo estado)
       }
   };
 
   const handleCancelDelete = () => {
       setTerrainToDeleteId(null); // Limpa o ID do terreno a ser deletado
-      setIsDeleteConfirmationVisible(false); // Fecha o modal de confirmação
+      setIsDeleteModalVisible(false); // Fecha o modal de confirmação (usando o novo estado)
   };
 
 
   // >>> Prepara os dados para o modal de confirmação
   // Encontra os dados do terreno selecionado para exibir no modal de confirmação
-  const terrainDataForConfirmation = userTerrains.find(t => t.id === selectedLandId && !t.isAddNewCard && !t.isDeleteCard);
+  // Buscamos o terrainToDeleteId, que é definido quando o card de exclusão é clicado
+  const terrainDataForConfirmation = userTerrains.find(t => t.id === terrainToDeleteId && !t.isAddNewCard && !t.isDeleteCard);
+  // Adicionamos o terrainToDeleteId às props para o modal de confirmação saber qual ID usar
   const confirmationModalProps = {
-      visible: isDeleteConfirmationVisible,
+      visible: isDeleteModalVisible, // Usa o novo estado de visibilidade
       onClose: handleCancelDelete, // Cancelar fecha o modal
-      // Passamos dados específicos para o modal adaptar sua aparência e lógica
-      isConfirmation: true,
-      confirmText: 'Apagar', // Texto do botão de confirmação
-      cancelText: 'Cancelar', // Texto do botão de cancelamento
-      confirmationMessage: `Tem certeza que deseja remover o terreno "${terrainDataForConfirmation?.name || terrainToDeleteId}"?`, // Mensagem de confirmação
       onConfirm: handleConfirmDelete, // Função a ser chamada ao confirmar
       // Passamos os dados do terreno para exibição no modal (opcional, depende do layout do modal)
-      terrainData: terrainDataForConfirmation,
+      terrainData: terrainDataForConfirmation, // Passa os dados do terreno selecionado para exclusão
   };
   // <<< Fim da preparação dos dados para o modal de confirmação
 
@@ -447,7 +448,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
          )
       ) : (
           // Optional: Show a different message or content when no real land is selected (e.g., add new card is the only one)
-          userTerrains.length > 2 ? ( // Check if there are real terrains + add new card + delete card
+          userTerrains.filter(t => !t.isAddNewCard && !t.isDeleteCard).length > 0 ? ( // Check if there are real terrains
              <View style={styles.rankingCard}>
                 <Text style={styles.rankingPlaceholderText}>Selecione um terreno no carrossel acima para ver o ranking.</Text>
              </View>
@@ -463,15 +464,15 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
         visible={isAddModalVisible}
         onClose={handleCloseAddModal}
         onAddTerrain={addTerrainToFirebase} // Passa a função de adicionar para o modal
-        // isConfirmation e outras props do modal de confirmação não são passadas aqui
       />
 
-      {/* >>> Renderiza o modal de confirmação de exclusão (reutilizando AddTerrainModal) */}
-      {/* Renderizamos o modal de confirmação apenas se ele estiver visível */}
-      {isDeleteConfirmationVisible && (
-          <AddTerrainModal {...confirmationModalProps} />
-      )}
-      {/* <<< Fim do modal de confirmação */}
+      {/* Renderiza o modal de confirmação de exclusão */}
+      <DeleteConfirmationModal
+          visible={isDeleteModalVisible} // Usa o novo estado de visibilidade
+          onClose={handleCancelDelete} // Cancelar fecha o modal
+          onConfirm={handleConfirmDelete} // Função a ser chamada ao confirmar
+          terrainData={terrainDataForConfirmation} // Passa os dados do terreno para exibição no modal
+      />
     </View>
   );
 };

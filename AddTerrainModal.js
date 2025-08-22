@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
-// Adicionamos novas props para configurar o modal para confirmação
-const AddTerrainModal = ({ visible, onClose, onAddTerrain, isConfirmation, confirmationMessage, onConfirm, confirmText = 'Confirmar', cancelText = 'Cancelar', terrainData }) => { // Added terrainData prop here
-  // Estados para o formulário de adição (usados apenas quando isConfirmation é falso)
+// O modal agora será exclusivo para adicionar terrenos
+const AddTerrainModal = ({ visible, onClose, onAddTerrain }) => {
+  // Estados para o formulário de adição
   const [id, setId] = useState('');
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
   const [points, setPoints] = useState('');
   const [error, setError] = useState('');
 
-  // Handler para adicionar terreno (usado apenas quando isConfirmation é falso)
+  // Handler para adicionar terreno
   const handleAdd = () => {
     // Validação básica
     if (!id || !name || !level || !points) {
@@ -42,20 +42,9 @@ const AddTerrainModal = ({ visible, onClose, onAddTerrain, isConfirmation, confi
     onClose(); // Fecha o modal
   };
 
-  // Handler para confirmar (usado apenas quando isConfirmation é verdadeiro)
-  const handleConfirm = () => {
-      setError(''); // Limpa erros anteriores
-      if (onConfirm) {
-          onConfirm(); // Chama a função de confirmação passada por prop
-      }
-      // Não limpamos os campos de adição aqui, pois eles não são usados neste modo
-      // onClose(); // onConfirm ou onCancel devem fechar o modal
-  };
-
-
-  // Handler para fechar (usado em ambos os modos)
+  // Handler para fechar
   const handleClose = () => {
-    // Limpa os campos e erros (para o modo adição) ao fechar
+    // Limpa os campos e erros ao fechar
     setId('');
     setName('');
     setLevel('');
@@ -78,87 +67,57 @@ const AddTerrainModal = ({ visible, onClose, onAddTerrain, isConfirmation, confi
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
           <View style={styles.modalView}>
 
-            {/* Título do modal */}
-            <Text style={styles.modalTitle}>
-                {isConfirmation ? 'Confirmar Exclusão' : 'Adicionar Novo Terreno'}
-            </Text>
+            {/* Título do modal para Adicionar Terreno */}
+            <Text style={styles.modalTitle}>Adicionar Novo Terreno</Text>
 
             {/* Exibe erro se houver */}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            {/* Conteúdo condicional baseado no modo (Adição ou Confirmação) */}
-            {isConfirmation ? (
-              // Conteúdo para o modo de confirmação
-              <Text style={styles.confirmationMessageText}>{confirmationMessage}</Text>
-            ) : (
-              // Conteúdo para o modo de adição (formulário)
-              <>
-                <TextInput
-                  style={styles.input}
-                  placeholder="ID do Terreno"
-                  value={id}
-                  onChangeText={setId}
-                  autoCapitalize="none"
-                  keyboardType="default" // Pode ser 'number-pad' se o ID for apenas números
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nome do Terreno"
-                  value={name}
-                  onChangeText={setName}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nível"
-                  value={level}
-                  onChangeText={setLevel}
-                  keyboardType="numeric"
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Pontos Totais"
-                  value={points}
-                  onChangeText={setPoints}
-                  keyboardType="numeric"
-                />
-              </>
-            )}
-
+            {/* Conteúdo do formulário de adição */}
+            <TextInput
+              style={styles.input}
+              placeholder="ID do Terreno"
+              value={id}
+              onChangeText={setId}
+              autoCapitalize="none"
+              keyboardType="default"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nome do Terreno"
+              value={name}
+              onChangeText={setName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nível"
+              value={level}
+              onChangeText={setLevel}
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Pontos Totais"
+              value={points}
+              onChangeText={setPoints}
+              keyboardType="numeric"
+            />
 
             <View style={styles.buttonContainer}>
-              {isConfirmation ? (
-                // Botões para o modo de confirmação
-                <>
-                  <TouchableOpacity
-                    style={[styles.button, styles.deleteConfirmButton]} // Estilo para confirmar exclusão
-                    onPress={handleConfirm}
-                  >
-                    <Text style={styles.buttonText}>{confirmText}</Text>
-                  </TouchableOpacity>
-                   <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={handleClose} // Cancelar fecha
-                  >
-                    <Text style={styles.cancelButtonText}>{cancelText}</Text> {/* Texto do botão de cancelar */}
-                  </TouchableOpacity>
-                </>
-              ) : (
-                // Botões para o modo de adição
-                <>
-                  <TouchableOpacity
-                    style={[styles.button, styles.addButton]}
-                    onPress={handleAdd}
-                  >
-                    <Text style={styles.buttonText}>Adicionar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={handleClose} // Cancelar fecha
-                  >
-                    <Text style={styles.cancelButtonText}>Cancelar</Text> {/* Texto do botão de cancelar */}
-                  </TouchableOpacity>
-                </>
-              )}
+              {/* Botão Adicionar */}
+              <TouchableOpacity
+                style={[styles.button, styles.addButton]}
+                onPress={handleAdd}
+              >
+                <Text style={styles.buttonText}>Adicionar</Text>
+              </TouchableOpacity>
+              {/* Botão Cancelar */}
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={handleClose}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -174,11 +133,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fundo semi-transparente
   },
-  scrollViewContent: { // Keep style, even if ScrollView is commented out
+  scrollViewContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20, // Adiciona padding vertical para ScrollView
+    paddingVertical: 20,
   },
   modalView: {
     margin: 20,
@@ -194,8 +153,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    width: '90%', // Ocupa 90% da largura
-    maxWidth: 400, // Limita a largura máxima em telas maiores
+    width: '90%',
+    maxWidth: 400,
   },
   modalTitle: {
     marginBottom: 15,
@@ -224,8 +183,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     elevation: 2,
-    flex: 1, // Permite que os botões ocupem espaço igual
-    marginHorizontal: 5, // Espaço entre os botões
+    flex: 1,
+    marginHorizontal: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -235,16 +194,13 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: '#e0e0e0', // Cor cinza clara para cancelar
   },
-  deleteConfirmButton: { // Estilo para o botão de confirmar exclusão
-      backgroundColor: '#d32f2f', // Cor vermelha escura para confirmar exclusão
-  },
-  buttonText: {
+   buttonText: {
     color: 'white',
     fontWeight: 'bold',
     textAlign: 'center',
     fontSize: 16,
   },
-   cancelButtonText: { // Estilo para o texto do botão de cancelar (pode ser diferente da cor branca)
+   cancelButtonText: {
       color: '#555', // Cor cinza escura para o texto do cancelar
       fontWeight: 'bold',
       textAlign: 'center',
@@ -254,12 +210,6 @@ const styles = StyleSheet.create({
     color: '#d32f2f',
     marginBottom: 10,
     textAlign: 'center',
-  },
-  confirmationMessageText: { // Estilo para a mensagem de confirmação
-      fontSize: 18,
-      textAlign: 'center',
-      marginBottom: 20,
-      color: '#333',
   },
 });
 
