@@ -17,18 +17,33 @@ const AddTerrainModal = ({ visible, onClose, onAddTerrain }) => {
       setError('Por favor, preencha todos os campos.');
       return;
     }
-    if (isNaN(level) || isNaN(points)) {
-       setError('Nível e Pontos devem ser números.');
+
+    const parsedLevel = parseInt(level, 10);
+    const parsedPoints = parseFloat(points);
+    const parsedId = parseInt(id, 10); // Parse ID as integer
+
+    // --- Validações Adicionadas ---
+    if (isNaN(parsedLevel) || parsedLevel < 1 || parsedLevel > 10) {
+       setError('Nível deve ser um número entre 1 e 10.');
        return;
     }
+    if (isNaN(parsedPoints)) {
+       setError('Pontos Totais deve ser um número.');
+       return;
+    }
+     if (isNaN(parsedId) || parsedId < 132768 || parsedId > 165535) {
+        setError('ID do Terreno inválido. Deve ser um número entre 132768 e 165535.');
+        return;
+     }
+    // ------------------------------
 
     setError(''); // Limpa erros anteriores
 
     const newTerrainData = {
-      id: id.trim(), // Remove espaços em branco
+      id: String(parsedId), // Armazenar ID como string por consistência com Firebase IDs
       name: name.trim(),
-      level: parseInt(level, 10), // Converte para número inteiro
-      points: parseFloat(points), // Converte para número flutuante
+      level: parsedLevel,
+      points: parsedPoints,
     };
 
     // Chama a função passada por prop para adicionar o terreno
@@ -80,7 +95,7 @@ const AddTerrainModal = ({ visible, onClose, onAddTerrain }) => {
               value={id}
               onChangeText={setId}
               autoCapitalize="none"
-              keyboardType="default"
+              keyboardType="numeric" // Change to numeric keyboard
             />
             <TextInput
               style={styles.input}
@@ -90,7 +105,7 @@ const AddTerrainModal = ({ visible, onClose, onAddTerrain }) => {
             />
             <TextInput
               style={styles.input}
-              placeholder="Nível"
+              placeholder="Nível (1-10)" // Update placeholder
               value={level}
               onChangeText={setLevel}
               keyboardType="numeric"
