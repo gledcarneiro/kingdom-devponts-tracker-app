@@ -1,6 +1,6 @@
 // Importe as dependências necessárias
 const admin = require('firebase-admin');
-const { fetchLandContribution } = require('./services/apiService'); // Importe a função da API
+const { fetchLandContribution } = require('./functions/services/apiService'); // Importe a função da API
 
 // Inicialize o Firebase Admin SDK
 // No ambiente do Cloud Functions, ele geralmente é inicializado automaticamente.

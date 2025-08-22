@@ -2,8 +2,8 @@
 // Ele não faz parte do seu app React Native.
 // Para executá-lo: node updateFirebase.js
 
-import { fetchLandContribution } from './services/apiService.js';
-import { updateLandRankingInFirebase } from './services/firebaseService.js';
+import { fetchLandContribution } from './functions/services/apiService.js';
+import { updateLandRankingInFirebase } from './functions/services/firebaseService.js';
 import { db } from './firebaseConfig.js';
 
 // Lista de IDs dos terrenos que você quer monitorar.

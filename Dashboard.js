@@ -10,14 +10,25 @@ import {
   limit,
   doc, // Importando 'doc'
   setDoc, // Importando 'setDoc'
-  deleteDoc // Importando 'deleteDoc' para a funcionalidade de exclusão
+  deleteDoc, // Importando 'deleteDoc' para a funcionalidade de exclusão
+  writeBatch, // Importar writeBatch para salvar múltiplos documentos eficientemente
+  where, // Importar where para consultas filtradas
+  orderBy // Importar orderBy para ordenar os resultados
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth'; // Import signOut from auth
 
 // Importa o novo componente do carrossel
 import TerrainsCarousel from './TerrainsCarousel';
-import { updateLandRankingInFirebase } from './services/firebaseService'; // Keep for long press update
-import { fetchLandContribution } from './services/apiService'; // Keep for long press update
+// REMOVIDA a importação de updateLandRankingInFirebase, não usaremos mais essa função aqui
+// import { updateLandRankingInFirebase } from './services/firebaseService';
+// CORRIGIDO: O caminho da importação agora reflete que 'services' está dentro de 'functions'
+// IMPORTANTE: Se estiver rodando o app React Native LOCALMENTE, o caminho CORRETO AQUI É './services/apiService'
+// porque a pasta functions NÃO existe na estrutura do APP.
+// Se esta Cloud Function estivesse rodando, o caminho CORRETO LÁ seria './services/apiService'.
+// Parece que esta célula de código está sendo usada tanto para contexto do app React Native quanto para Cloud Functions.
+// VOU MANTER O CAMINHO CORRETO PARA O APP REACT NATIVE:
+import { fetchLandContribution } from './functions/services/apiService'; // Keep for fetching API data
+
 import { APP_ID } from './firebaseConfig'; // Keep if still used
 import AddTerrainModal from './AddTerrainModal'; // Importa o modal de adição
 import DeleteConfirmationModal from './DeleteConfirmationModal'; // Importa o novo modal de exclusão
@@ -51,8 +62,8 @@ const RankingItem = ({ item }) => {
         <Text style={styles.rankingPositionText}>#{item.position}</Text>
       </View>
       <View style={styles.rankingInfo}>
-        <Text style={nameStyle}>{item.name}</Text>
-        <Text style={styles.rankingTotal}>{item.points.toLocaleString()}</Text>
+        <Text style={nameStyle}>{item.name || 'Sem nome'}</Text> {/* Handle potentially missing name */}
+        <Text style={styles.rankingTotal}>{item.contribution_amount != null ? String(item.contribution_amount.toLocaleString()) : 'N/A'}</Text> {/* Use contribution_amount and format */}
       </View>
     </View>
   );
@@ -61,7 +72,7 @@ const RankingItem = ({ item }) => {
 // O componente Dashboard é responsável por mostrar o ranking dos usuários e o carrossel de terrenos personalizados.
 const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop from MainApp
   const insets = useSafeAreaInsets();
-  const [ranking, setRanking] = useState([]); // State for the *ranking* of the selected land
+  const [ranking, setRanking] = useState([]); // State for the *ranking* of the selected land (this part might change later for historical view)
   const [userTerrains, setUserTerrains] = useState([]); // New state for the *user's list of terrains*
   const [loading, setLoading] = useState(true); // Initial loading for user terrains
   const [rankingLoading, setRankingLoading] = useState(false); // State to indicate if ranking is loading
@@ -70,6 +81,12 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   // Renomeamos isDeleteConfirmationVisible para isDeleteModalVisible para maior clareza
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false); // State to control Delete modal visibility
   const [terrainToDeleteId, setTerrainToDeleteId] = useState(null); // State to store ID of terrain to delete
+
+  // Calcule a data de ontem (d-1) no formato YYYY-MM-DD no escopo do componente
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const dateStringYesterday = yesterday.toISOString().split('T')[0]; // 'YYYY-MM-DD' (d-1)
 
 
   // Effect to load user's terrains from Firebase
@@ -162,7 +179,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   }, [db, user, selectedLandId]); // selectedLandId added as dependency to re-evaluate selection logic
 
 
-  // Effect to fetch ranking for the selected land (remains the same)
+  // Effect to fetch ranking for the selected land (MODIFIED TO FETCH DAILY CONTRIBUTIONS)
   useEffect(() => {
     // Only fetch ranking if db, user, and a selectedLandId are available AND it's not a special card ID
     if (!db || !user || !selectedLandId || selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain') {
@@ -171,79 +188,125 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       return;
     }
 
-    console.log(`Buscando ranking para Land ID: ${selectedLandId}`);
+    console.log(`Buscando ranking diário para Land ID: ${selectedLandId} (ontem)`);
     setRankingLoading(true); // Start ranking loading indicator
 
-    // Note: The ranking data is stored per land, not per user.
-    // The user's selection in the carousel determines which land's ranking to fetch.
-    const rankingCollectionRef = collection(db, `lands/${selectedLandId}/ranking`);
+    // Calcule a data de ontem (d-1) no formato YYYY-MM-DD (já calculada fora do hook)
 
-    const unsubscribeRanking = onSnapshot(rankingCollectionRef, (snapshot) => {
+
+    // Consulta a nova coleção 'daily_contributions'
+    const dailyContributionsCollectionRef = collection(db, 'daily_contributions');
+
+    // Cria a query: filtrar por landId e data de ontem, ordenar por contribution_amount decrescente
+    const q = query(
+        dailyContributionsCollectionRef,
+        where('landId', '==', selectedLandId),
+        where('date', '==', dateStringYesterday),
+        orderBy('contribution_amount', 'desc') // Ordena pela contribuição diária
+        // Opcional: limite o número de resultados, ex: limit(50)
+    );
+
+
+    const unsubscribeRanking = onSnapshot(q, (snapshot) => {
       const data = [];
       snapshot.forEach(doc => {
         data.push({
-          id: doc.id, // Use doc.id (kingdomId) as key
-          ...doc.data()
+          id: doc.id, // Use doc.id (document ID like landId_kingdomId_YYYY-MM-DD) as key
+          ...doc.data() // Inclui todos os campos do documento (landId, kingdomId, date, contribution_amount, etc.)
         });
       });
 
-      // Ordena pelo campo 'points' (agora armazenado como points no Firebase)
-      const sortedData = data.sort((a, b) => b.points - a.points);
-
-      // Adiciona posição
-      const rankingWithPosition = sortedData.map((item, index) => ({
+      // Os dados já vêm ordenados do Firestore graças ao orderBy na query
+      // Adiciona posição com base na ordem recebida
+      const rankingWithPosition = data.map((item, index) => ({
         ...item,
         position: index + 1
       }));
 
       setRanking(rankingWithPosition);
       setRankingLoading(false); // Ranking is loaded
-      console.log(`Ranking para Land ID ${selectedLandId} carregado com ${data.length} itens.`);
+      console.log(`Ranking diário para Land ID ${selectedLandId} em ${dateStringYesterday} carregado com ${data.length} itens.`);
     }, (error) => {
-      console.error(`Erro ao buscar o ranking para Land ID ${selectedLandId}:`, error);
+      console.error(`Erro ao buscar o ranking diário para Land ID ${selectedLandId} em ${dateStringYesterday}:`, error);
       setRanking([]);
       setRankingLoading(false); // Stop ranking loading indicator on error
     });
 
     // Retorna a função de unsubscribe para limpar o listener
     return () => {
-      console.log(`Limpando o listener de ranking para Land ID ${selectedLandId}.`);
+      console.log(`Limpando o listener de ranking diário para Land ID ${selectedLandId}.`);
       unsubscribeRanking();
     };
 
-  }, [db, user, selectedLandId]); // Depend on db, user, AND selectedLandId
+  }, [db, user, selectedLandId, dateStringYesterday]); // Depend on db, user, selectedLandId, AND dateStringYesterday
 
 
-  // Handle updating ranking via long press on carousel item (remains the same)
+  // Handle updating ranking via long press on carousel item (Collect daily data) (remains the same as last modification)
   const handleUpdateRanking = async (landId) => {
      // Prevent updating if it's a special card
      if (landId === 'add-new-terrain' || landId === 'delete-selected-terrain') {
        console.log(`Ignorando atualização de ranking para o card especial: ${landId}.`);
        return;
      }
-     // ... (rest of the logic remains the same)
      if (!db) {
-       alert('Firebase Database não está pronto.');
+       Alert.alert('Erro', 'Firebase Database não está pronto.');
        return;
      }
-     setRankingLoading(true); // Show loading while updating
-    try {
-      // We need the selectedLandId for the API call, which is passed from the carousel
-      const contributions = await fetchLandContribution(landId);
-      if (contributions && contributions.length > 0) {
-         await updateLandRankingInFirebase(landId, contributions);
-         Alert.alert('Sucesso!', 'Ranking atualizado com sucesso!'); // Usando Alert nativo
-         console.log(`Ranking para Land ID ${landId} atualizado via API/Firebase.`);
-      } else {
-         Alert.alert('Erro', 'Não foi possível obter dados da API ou nenhum dado retornado para atualizar.'); // Usando Alert nativo
-          console.log(`Nenhum dado da API retornado para Land ID ${landId} ou erro na busca.`);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Erro ao atualizar ranking: ' + error.message); // Usando Alert nativo
-      console.error("Erro ao atualizar ranking:", error);
-    } finally {
-        setRankingLoading(false); // Hide loading after update attempt
-    }
+     setRankingLoading(true); // Show loading while collecting data
+
+     try {
+       // Calculate yesterday's date (already calculated outside, but recalculate here for clarity/independence)
+       const today = new Date();
+       const yesterday = new Date(today);
+       yesterday.setDate(today.getDate() - 1);
+       const dateStringForCollection = yesterday.toISOString().split('T')[0]; // 'YYYY-MM-DD' (d-1)
+
+       console.log(`Coletando dados de contribuição para Land ID: ${landId} para a data: ${dateStringForCollection}`);
+
+       // Fetch data for yesterday from the API (assuming from=to=dateStringForCollection gives daily contribution)
+       const contributionsYesterday = await fetchLandContribution(landId, dateStringForCollection, dateStringForCollection);
+
+       if (contributionsYesterday && contributionsYesterday.length > 0) {
+         console.log(`Dados recebidos para Land ID ${landId} na data ${dateStringForCollection}. Preparando para salvar ${contributionsYesterday.length} reinos.`);
+
+         const batch = writeBatch(db); // Use batch for efficient writes
+
+         for (const contribution of contributionsYesterday) {
+           // Crie o ID único do documento na nova coleção: landId_kingdomId_YYYY-MM-DD
+           const docId = `${landId}_${contribution.kingdomId}_${dateStringForCollection}`;
+           const docRef = doc(db, 'daily_contributions', docId); // Referência para a nova coleção
+
+           // Prepare os dados para salvar na nova coleção
+           const dailyData = {
+             landId: landId,
+             kingdomId: contribution.kingdomId,
+             date: dateStringForCollection,
+             // Usar o 'total' retornado pela API diretamente,
+             // assumindo que from=to na chamada da API retorna a contribuição daquele dia.
+             contribution_amount: contribution.total,
+             kingdom_name: contribution.name,
+             continent: contribution.continent,
+             timestamp: new Date() // Usar a data/hora atual da coleta no cliente
+           };
+
+           batch.set(docRef, dailyData); // Adiciona a operação ao batch
+         }
+
+         // Commit o batch
+         await batch.commit();
+         Alert.alert('Sucesso!', `Dados de contribuição de ${dateStringForCollection} para o terreno ${landId} salvos!`);
+         console.log(`Dados de contribuição para Land ID ${landId} em ${dateStringForCollection} salvos na coleção 'daily_contributions'.`);
+
+       } else {
+         Alert.alert('Atenção', `Nenhum dado de contribuição encontrado para Land ID ${landId} na data ${dateStringForCollection}.`);
+         console.log(`Nenhum dado de contribuição encontrado para Land ID ${landId} na data ${dateStringForCollection}.`);
+       }
+     } catch (error) {
+       console.error("Erro ao coletar e salvar contribuição diária:", error);
+       Alert.alert('Erro', 'Erro ao coletar e salvar dados: ' + error.message);
+     } finally {
+         setRankingLoading(false); // Hide loading after attempt
+     }
   };
 
   // Função para adicionar Terreno ao Firebase (agora será chamada pelo modal) (remains the same)
@@ -358,13 +421,13 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       } else {
           console.error("Tentativa de confirmar exclusão sem um terreno selecionado.");
           Alert.alert("Erro", "Não foi possível identificar o terreno para excluir.");
-          setIsDeleteModalVisible(false); // Fecha o modal (usando o novo estado)
+          setIsDeleteModalVisible(false); // Usa o novo estado
       }
   };
 
   const handleCancelDelete = () => {
       setTerrainToDeleteId(null); // Limpa o ID do terreno a ser deletado
-      setIsDeleteModalVisible(false); // Fecha o modal de confirmação (usando o novo estado)
+      setIsDeleteModalVisible(false); // Usa o novo estado
   };
 
 
@@ -416,7 +479,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       <TerrainsCarousel
         terrains={userTerrains} // Pass the user's terrains including the add new card and delete card
         onSelectLand={handleSelectLand} // Use the new handler
-        onUpdateRanking={handleUpdateRanking}
+        onUpdateRanking={handleUpdateRanking} // This will now trigger the daily data collection
         selectedLandId={selectedLandId} // Pass selectedLandId to highlight
       />
 
@@ -424,7 +487,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       <Text style={styles.rankingTitle}>
         {/* Display selected land name or message */}
         {selectedLandId && selectedLandId !== 'add-new-terrain' && selectedLandId !== 'delete-selected-terrain'
-           ? `#${userTerrains.find(t => t.id === selectedLandId)?.id} - ${userTerrains.find(t => t.id === selectedLandId)?.name || selectedLandId} - ${ranking.length}`
+           ? `#${userTerrains.find(t => t.id === selectedLandId)?.id} - ${userTerrains.find(t => t.id === selectedLandId)?.name || selectedLandId} - Ranking Diário (${dateStringYesterday || '...'})` // Update title
            : 'Selecione um terreno para ver o ranking'}
       </Text>
       {/* Only show ranking list if a real land is selected */}
@@ -438,19 +501,19 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
            <FlatList
              data={ranking}
              renderItem={({ item }) => <RankingItem item={item} />}
-             keyExtractor={item => item.id} // Use item.id (kingdomId) as key
+             keyExtractor={item => item.id} // Use item.id (document ID) as key
              style={styles.listContainer}
            />
          ) : (
            <View style={styles.rankingCard}>
-             <Text style={styles.rankingPlaceholderText}>Ainda não há dados de ranking para este terreno.</Text>
+             <Text style={styles.rankingPlaceholderText}>Ainda não há dados de ranking diário para este terreno para a data selecionada.</Text> {/* Update placeholder text */}
            </View>
          )
       ) : (
           // Optional: Show a different message or content when no real land is selected (e.g., add new card is the only one)
           userTerrains.filter(t => !t.isAddNewCard && !t.isDeleteCard).length > 0 ? ( // Check if there are real terrains
              <View style={styles.rankingCard}>
-                <Text style={styles.rankingPlaceholderText}>Selecione um terreno no carrossel acima para ver o ranking.</Text>
+                <Text style={styles.rankingPlaceholderText}>Selecione um terreno no carrossel acima para ver o ranking diário.</Text> {/* Update placeholder text */}
              </View>
           ) : ( // If only special cards or initially empty
              <View style={styles.rankingCard}>
