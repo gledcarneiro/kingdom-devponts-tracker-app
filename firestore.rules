@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para a coleção de ranking global
+    match /artifacts/{appId}/public/data/ranking/{documentId} {
+      // Permite leitura para usuários autenticados.
+      allow read: if request.auth != null;
+      // Permite escrita mesmo sem autenticação para fins de inicialização/backend.
+      // AJUSTADO: Permite escrita sem autenticação. Considere restringir isso no futuro.
+      allow write: if true;
+    }
+
+    // Regras para ranking por terreno
+    match /lands/{landId}/ranking/{kingdomId} {
+       // Permite leitura e escrita apenas para usuários autenticados.
+       // Novamente, considere se a escrita deve ser mais restrita.
+      allow read, write: if request.auth != null;
+    }
+
+    // Regras para a subcoleção de terrenos de cada usuário
+    // Permite que um usuário autenticado leia e escreva apenas na sua própria subcoleção 'terrenos'.
+    match /users/{userId}/terrenos/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // NOVA REGRA: Regras para a coleção de contribuições diárias
+    // Permite que qualquer usuário autenticado escreva (crie novos documentos)
+    // e leia documentos na coleção 'daily_contributions'.
+    // Podemos refinar isso depois se necessário (ex: permitir escrita APENAS
+    // se o ID do documento seguir o padrão landId_kingdomId_YYYY-MM-DD).
+    match /daily_contributions/{documentId} {
+      allow read, write: if request.auth != null;
+    }
+
+
+    // Regra padrão para negar acesso a outras coleções não especificadas acima.
+    // Esta regra deve vir por último para não sobrescrever as regras mais específicas.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

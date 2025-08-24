@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "kingdom-devponts-tracker"
-  }
+    "default": "kingdom-devponts-tracker",
+    "devpoints": "kingdom-devponts-tracker"
+  },
+  "targets": {},
+  "etags": {}
 }

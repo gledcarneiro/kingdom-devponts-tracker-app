@@ -15,6 +15,13 @@ const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
   console.log('Rendering TerrenoItem:', item?.id, 'isSelected:', isSelected, 'Item:', item); // Add this log
   const backgroundImage = require('./assets/land.png'); // Imagem de fundo para cards de terreno normais
 
+  // Adicionando uma verificação inicial para garantir que item é um objeto válido
+  if (!item || typeof item !== 'object') {
+      console.warn('TerrenoItem received invalid item:', item);
+      return null; // Não renderiza se o item for inválido
+  }
+
+
   // Verifica se é o card de adicionar novo
   if (item.isAddNewCard) {
     return (
@@ -63,20 +70,19 @@ const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
         imageStyle={styles.cardBackgroundImage}
       >
         <View style={styles.cardContent}>
-          {/* Exibe o nome do terreno (campo vindo do Firebase) */}
-          {/* REMOVIDO para resolver o aviso "Text strings must be rendered within a <Text> component." */}
-          {/* <Text style={styles.terrenoName}>{String(item.name || 'Terreno sem nome')}</Text> */}
+          <Text style={styles.terrenoName}>{String(item.name || 'Terreno sem nome')}</Text>
 
           <View style={styles.pointsContainer}>
-            {/* Ensure points is treated as string and format it */}
-            <Text style={styles.pointsText}>{item.points != null ? String(item.points.toLocaleString()) : 'N/A'}</Text>
+            <Text style={styles.pointsText}>
+              {item.latestDailyContribution?.contribution_amount != null
+                ? String(item.latestDailyContribution.contribution_amount.toLocaleString())
+                : (item.points != null ? String(item.points.toLocaleString()) : 'N/A')}
+            </Text>
           </View>
 
           <View style={styles.bottomInfoContainer}>
-            {/* Ensure level is treated as string */}
             <Text style={styles.levelText}>Lvl {String(item.level || '?')}</Text>
             <View style={styles.idContainer}>
-              {/* Ensure id is treated as string */}
               <Text style={styles.idText}>#{String(item.id)}</Text>
             </View>
           </View>
@@ -91,31 +97,32 @@ const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
 const TerrainsCarousel = ({ terrains, onSelectLand, onUpdateRanking, selectedLandId }) => {
   return (
     <View>
-      <Text style={styles.carouselTitle}>Meus Terrenos</Text> {/* Título mais relevante */}
+      {/* <Text style={styles.carouselTitle}>Meus Terrenos</Text> // Título mais relevante */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.carouselScrollView}
         contentContainerStyle={styles.carouselContentContainer} // Adiciona padding ao redor dos cards
       >
-        {/* Mapeia sobre a prop 'terrains' */}
-        {/* Explicitly wrap mapped items in a View */}
+        // Mapeia sobre a prop 'terrains'
+        // Explicitly wrap mapped items in a View
         <View style={{ flexDirection: 'row' }}>
           {terrains && Array.isArray(terrains) && terrains.map((item) => {
-            // Add a check to ensure the item is a valid object before rendering
-            if (typeof item !== 'object' || item === null) {
-              console.warn('Skipping invalid item in terrains array:', item);
-              return null; // Skip rendering invalid items
+            // Add a check to ensure the item is a valid object before rendering AND before accessing item.id for the key
+            if (item && typeof item === 'object' && item.id != null) { // Check if item is object and has a non-null id
+               return (
+                 <TerrenoItem
+                   key={item.id} // Use o ID do item como key
+                   item={item} // Pass the entire item including latestDailyContribution
+                   onSelect={onSelectLand}
+                   onUpdate={onUpdateRanking} // Corrected prop name
+                   isSelected={item.id === selectedLandId} // Passa se o card está selecionado
+                 />
+               );
+            } else {
+               console.warn('Skipping invalid item in terrains array during map:', item);
+               return null; // Skip rendering invalid items
             }
-            return (
-              <TerrenoItem
-                key={item.id} // Use o ID do item como key
-                item={item}
-                onSelect={onSelectLand}
-                onUpdate={onUpdateRanking}
-                isSelected={item.id === selectedLandId} // Passa se o card está selecionado
-              />
-            );
           })}
         </View>
       </ScrollView>

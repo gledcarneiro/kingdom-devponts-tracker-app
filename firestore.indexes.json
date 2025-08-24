@@ -1,0 +1,44 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "daily_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "landId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "daily_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "landId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "contribution_amount",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
+}
