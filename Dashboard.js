@@ -55,6 +55,9 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
+  // CORRIGIDO: A data de ontem é calculada aqui para ser o valor inicial do selectedDate
+  // e não para ser usada diretamente na chamada da API ou consulta do Firestore.
+  // A consulta e a chamada da API agora usam selectedDate.
   const dateStringYesterday = yesterday.toISOString().split('T')[0]; // 'YYYY-MM-DD' (d-1)
   // Vamos calcular a data de hoje também, pode ser útil
   const dateStringToday = today.toISOString().split('T')[0];
@@ -175,8 +178,17 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
   // NOVO useEffect para buscar o ranking com base na data selecionada
   useEffect(() => {
-    // Constrói a string de data no formato YYYY-MM-DD a partir do objeto selectedDate
-    const targetDateString = selectedDate ? selectedDate.toISOString().split('T')[0] : null;
+    console.log("Dashboard: Ranking useEffect triggered. selectedDate (object):", selectedDate); // Log selectedDate object
+
+    // CORRIGIDO: Formata a data manualmente para evitar problemas de fuso horário com toISOString().
+    let targetDateString = null;
+    if (selectedDate) {
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0'); // Mês é base 0
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        targetDateString = `${year}-${month}-${day}`;
+    }
+    console.log("Dashboard: Ranking useEffect: Target Date String for query (manual format):", targetDateString); // Log targetDateString
 
     // Só busca o ranking se db, user, selectedLandId são válidos, não é um card especial, e targetDateString é válido
     if (!db || !user || !selectedLandId || selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain' || !targetDateString) {
@@ -258,8 +270,10 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   const onDateChange = (event, date) => {
     const currentDate = date || selectedDate; // Use a data atual se nenhuma for selecionada
     setShowDatePicker(Platform.OS === 'ios'); // No iOS, o seletor de data é um modal, no Android, ele se fecha automaticamente
+    // CORRIGIDO: Ao selecionar a data, atualiza selectedDate.
     setSelectedDate(currentDate); // Atualiza o estado com a nova data selecionada
-    console.log("Dashboard: Date selected:", currentDate.toISOString().split('T')[0]); // Log the selected date
+    console.log("Dashboard: Date selected (DateTimePicker):", currentDate ? currentDate.toISOString() : 'null'); // Log the selected date object
+    console.log("Dashboard: Date selected (Formatted YYYY-MM-DD):", currentDate ? currentDate.toISOString().split('T')[0] : 'null'); // Log the formatted date
   };
 
   // Função para mostrar o seletor de data
@@ -281,24 +295,41 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
        console.error("Dashboard: handleUpdateRanking: Firebase Database not ready."); // Log error
        return;
      }
+
+     // --- NOVO: Use a data selecionada pelo usuário para a coleta ---
+     const dateToCollect = selectedDate; // Use the selected date object
+     if (!dateToCollect) {
+         Alert.alert('Atenção', 'Selecione uma data para coletar os dados.');
+         console.warn("Dashboard: handleUpdateRanking: No date selected for collection.");
+         return;
+     }
+     // CORRIGIDO: Usa a data selecionada para a string de coleta.
+     // Use a mesma lógica de formatação manual para consistência
+     const year = dateToCollect.getFullYear();
+     const month = String(dateToCollect.getMonth() + 1).padStart(2, '0'); // Mês é base 0
+     const day = String(dateToCollect.getDate()).padStart(2, '0');
+     const dateStringForCollection = `${year}-${month}-${day}`;
+
+     console.log(`Dashboard: handleUpdateRanking: Collecting data for Land ID: ${landId} for date: ${dateStringForCollection} via API.`); // Log collection date
+     // --- FIM NOVO ---
+
+
      setRankingLoading(true); // Show loading while collecting data
 
      try {
        // Calculate yesterday's date (d-1) for collecting data
-       const today = new Date();
-       const yesterday = new Date(today);
-       yesterday.setDate(today.getDate() - 1);
-       const dateStringForCollection = yesterday.toISOString().split('T')[0]; // 'YYYY-MM-DD' (d-1)
-       console.log(`Dashboard: handleUpdateRanking: Collecting data for Land ID: ${landId} for date: ${dateStringForCollection} via API.`); // Log collection date
+       // REMOVIDO: Não calculamos mais o dia anterior aqui, usamos selectedDate
+       // const today = new Date();
+       // const yesterday = new Date(today);
+       // yesterday.setDate(today.getDate() - 1);
+       // const dateStringForCollection = yesterday.toISOString().split('T')[0]; // 'YYYY-MM-DD' (d-1)
+       // console.log(`Dashboard: handleUpdateRanking: Collecting data for Land ID: ${landId} for date: ${dateStringForCollection} via API.`); // Log collection date
 
 
-       // Fetch data for yesterday from the API (assuming from=to=dateStringForCollection gives daily contribution)
-       // NOTE: fetchLandContribution in apiService.js currently fetches data for the last 5 days.
-       // You might need to adjust fetchLandContribution to accept 'from' and to dates
-       // if you specifically need *only* yesterday's data from the API.
-       // For now, this call will get 5 days, but we'll only save yesterday's data below.
-       // If fetchLandContribution is modified, the parameters here should be adjusted.
-       const contributionsAPI = await fetchLandContribution(landId, dateStringForCollection, dateStringForCollection); // Pass dates to API fetch (might need adjustment in apiService)
+       // Fetch data for the *selected* day from the API
+       // Pass dateStringForCollection as both 'from' and 'to'
+       // CORRIGIDO: Passa a dateStringForCollection como from e to para fetchLandContribution.
+       const contributionsAPI = await fetchLandContribution(landId, dateStringForCollection, dateStringForCollection); // Pass dates to API fetch
        console.log("Dashboard: handleUpdateRanking: Data received from API:", contributionsAPI); // Log API data
 
 
@@ -308,15 +339,15 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
        // If fetchLandContribution was modified to only return data for from=to date, maybe no filtering needed.
        // Let's assume fetchLandContribution now accepts and uses from/to correctly, returning only data for dateStringForCollection.
        // If API returns data in a slightly different structure or for a range, this filtering needs adjustment.
-       const contributionsForYesterday = contributionsAPI; // Assuming fetchLandContribution with from=to returns only that day's data or []
-       console.log(`Dashboard: handleUpdateRanking: Data for collection date (${dateStringForCollection}):`, contributionsForYesterday); // Log data for collection date
+       const contributionsForSelectedDate = contributionsAPI; // Assuming fetchLandContribution with from=to returns only that day's data or []
+       console.log(`Dashboard: handleUpdateRanking: Data for collection date (${dateStringForCollection}):`, contributionsForSelectedDate); // Log data for collection date
 
 
-       if (contributionsForYesterday && contributionsForYesterday.length > 0) {
-         console.log(`Dashboard: handleUpdateRanking: Preparing to save ${contributionsForYesterday.length} records.`); // Log save count
+       if (contributionsForSelectedDate && contributionsForSelectedDate.length > 0) {
+         console.log(`Dashboard: handleUpdateRanking: Preparing to save ${contributionsForSelectedDate.length} records.`); // Log save count
          const batch = writeBatch(db); // Use batch for efficient writes
 
-         for (const contribution of contributionsForYesterday) {
+         for (const contribution of contributionsForSelectedDate) {
            // Crie o ID único do documento na nova coleção: landId_kingdomId_YYYY-MM-DD
            const docId = `${landId}_${contribution.kingdomId}_${dateStringForCollection}`;
            const docRef = doc(db, 'daily_contributions', docId); // Referência para a nova coleção
