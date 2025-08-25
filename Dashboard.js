@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native'; // Import TextInput
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native'; // Remove TextInput
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getFirestore,
@@ -32,6 +32,10 @@ import { APP_ID } from './firebaseConfig'; // Keep if still used
 import AddTerrainModal from './AddTerrainModal'; // Importa o modal de adição
 import DeleteConfirmationModal from './DeleteConfirmationModal'; // Importa o novo modal de exclusão
 
+// IMPORTANDO DateTimePicker
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+
 // REMOVIDO O COMPONENTE RankingItem pois o ranking será removido
 
 // O componente Dashboard é responsável por mostrar o ranking dos usuários e o carrossel de terrenos personalizados.
@@ -47,7 +51,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false); // State to control Delete modal visibility
   const [terrainToDeleteId, setTerrainToDeleteId] = useState(null); // State to store ID of terrain to delete
 
-  // Calcule a data de ontem (d-1) no formato YYYY-MM-DD no escopo do componente
+  // Calcule a data de ontem (d-1) no escopo do componente
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -55,13 +59,11 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   // Vamos calcular a data de hoje também, pode ser útil
   const dateStringToday = today.toISOString().split('T')[0];
 
-  // NOVO ESTADO: Para armazenar o dia selecionado pelo usuário para o ranking
+  // NOVO ESTADO: Para armazenar a data selecionada pelo usuário para o ranking (agora um objeto Date)
   // Inicializamos com o dia de ontem como padrão
-  const [selectedDay, setSelectedDay] = useState(String(yesterday.getDate()));
-  // NOVO ESTADO: Para armazenar o mês e ano selecionados (usaremos o atual por enquanto)
-  // Inicializa com o mês e ano de ontem
-  const [selectedMonth, setSelectedMonth] = useState(String(yesterday.getMonth() + 1)); // Mês é 0-indexado, então +1
-  const [selectedYear, setSelectedYear] = useState(String(yesterday.getFullYear()));
+  const [selectedDate, setSelectedDate] = useState(yesterday);
+  // NOVO ESTADO: Para controlar a visibilidade do seletor de data
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
 
   // Effect to load user's terrains from Firebase AND fetch latest daily contribution
@@ -173,23 +175,18 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
   // NOVO useEffect para buscar o ranking com base na data selecionada
   useEffect(() => {
-    // Só busca o ranking se db, user, selectedLandId são válidos, não é um card especial, e selectedDay, selectedMonth, selectedYear são números válidos
-    if (!db || !user || !selectedLandId || selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain' || !selectedDay || isNaN(parseInt(selectedDay, 10)) || !selectedMonth || isNaN(parseInt(selectedMonth, 10)) || !selectedYear || isNaN(parseInt(selectedYear, 10))) {
-      console.log("Dashboard: Ranking useEffect skipped. selectedLandId:", selectedLandId, "selectedDay:", selectedDay, "selectedMonth:", selectedMonth, "selectedYear:", selectedYear); // Log skip reason
+    // Constrói a string de data no formato YYYY-MM-DD a partir do objeto selectedDate
+    const targetDateString = selectedDate ? selectedDate.toISOString().split('T')[0] : null;
+
+    // Só busca o ranking se db, user, selectedLandId são válidos, não é um card especial, e targetDateString é válido
+    if (!db || !user || !selectedLandId || selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain' || !targetDateString) {
+      console.log("Dashboard: Ranking useEffect skipped. selectedLandId:", selectedLandId, "selectedDate:", selectedDate); // Log skip reason
       setRanking([]); // Limpa o ranking se os pré-requisitos não forem atendidos
       return;
     }
 
-    console.log(`Dashboard: Ranking useEffect: Fetching ranking for Land ID: ${selectedLandId} for Date: ${selectedYear}-${selectedMonth}-${selectedDay}`); // Log start of fetch
+    console.log(`Dashboard: Ranking useEffect: Fetching ranking for Land ID: ${selectedLandId} for Date: ${targetDateString}`); // Log start of fetch
     setRankingLoading(true); // Inicia o indicador de carregamento do ranking
-
-    // Constrói a string de data no formato YYYY-MM-DD
-    // Garante que selectedDay e selectedMonth sejam preenchidos com zero à esquerda se necessário
-    const paddedDay = String(parseInt(selectedDay, 10)).padStart(2, '0');
-    const paddedMonth = String(parseInt(selectedMonth, 10)).padStart(2, '0');
-    const targetDateString = `${selectedYear}-${paddedMonth}-${paddedDay}`; // Formato YYYY-MM-DD
-
-    console.log(`Dashboard: Ranking useEffect: Target Date String for query: ${targetDateString}`);
 
 
     // Consulta a coleção 'daily_contributions' filtrando por landId E a data selecionada
@@ -254,7 +251,21 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       unsubscribeRanking();
     };
 
-  }, [db, user, selectedLandId, selectedDay, selectedMonth, selectedYear]); // Dependências atualizadas
+  }, [db, user, selectedLandId, selectedDate]); // Dependência atualizada para selectedDate
+
+
+  // Handler para a mudança de data no DateTimePicker
+  const onDateChange = (event, date) => {
+    const currentDate = date || selectedDate; // Use a data atual se nenhuma for selecionada
+    setShowDatePicker(Platform.OS === 'ios'); // No iOS, o seletor de data é um modal, no Android, ele se fecha automaticamente
+    setSelectedDate(currentDate); // Atualiza o estado com a nova data selecionada
+    console.log("Dashboard: Date selected:", currentDate.toISOString().split('T')[0]); // Log the selected date
+  };
+
+  // Função para mostrar o seletor de data
+  const showDatepicker = () => {
+    setShowDatePicker(true);
+  };
 
 
   // Handle updating ranking via long press on carousel item (Collect daily data)
@@ -505,63 +516,27 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
         </TouchableOpacity>
       </View>
 
-      {/* NOVO: Seção de Seleção de Data movida para cima, substituindo o título do carrossel */}
+      {/* NOVO: Seção de Seleção de Data usando DateTimePicker */}
       {selectedLandId && selectedLandId !== 'add-new-terrain' && selectedLandId !== 'delete-selected-terrain' && (
-         <View style={styles.dateSelectionContainerTop}> {/* Usando um novo estilo para ajustar margens/padding no topo */}
-              <Text style={styles.dateSelectionLabel}>Ranking da Data:</Text> {/* Título da seção de data */}
-              {/* TextInput para o Dia */}
-              <TextInput
-                  style={styles.dateInput}
-                  keyboardType="numeric"
-                  maxLength={2} // Dias 1-31
-                  value={selectedDay}
-                  onChangeText={(text) => {
-                      // Validação básica para garantir que é um número entre 1 e 31
-                      const day = parseInt(text, 10);
-                       // Permite limpar o campo ou digitar um número válido
-                      if (text === '' || (!isNaN(day) && day >= 1 && day <= 31)) {
-                           setSelectedDay(text); // Keep as text initially to allow typing 1-9
-                       }
-                      // Opcional: Adicionar feedback ao usuário se o dia for inválido
-                  }}
-                  placeholder="Dia"
-              />
-              <Text style={styles.dateSeparator}>/</Text>
-               {/* TextInput para o Mês */}
-              <TextInput
-                  style={styles.dateInput}
-                  keyboardType="numeric"
-                  maxLength={2} // Meses 1-12
-                  value={selectedMonth}
-                   onChangeText={(text) => {
-                      // Validação básica para garantir que é um número entre 1 e 12
-                      const month = parseInt(text, 10);
-                       // Permite limpar o campo ou digitar um número válido
-                      if (text === '' || (!isNaN(month) && month >= 1 && month <= 12)) {
-                           setSelectedMonth(text); // Keep as text initially
-                       }
-                      // Opcional: Adicionar feedback ao usuário se o mês for inválido
-                  }}
-                  placeholder="Mês"
-              />
-              <Text style={styles.dateSeparator}>/</Text>
-               {/* TextInput para o Ano */}
-              <TextInput
-                  style={styles.dateInputYear} // Pode precisar de um estilo ligeiramente diferente para o ano
-                  keyboardType="numeric"
-                  maxLength={4} // Ano YYYY
-                  value={selectedYear}
-                   onChangeText={(text) => {
-                      // Validação básica para garantir que é um número razoável para um ano
-                      const year = parseInt(text, 10);
-                       // Permite limpar o campo ou digitar um número válido (ex: >= 2020)
-                      if (text === '' || (!isNaN(year) && year >= 2020 && year <= today.getFullYear() + 5)) { // Ex: anos entre 2020 e 5 anos no futuro
-                           setSelectedYear(text); // Keep as text initially
-                       }
-                      // Opcional: Adicionar feedback ao usuário se o ano for inválido
-                  }}
-                  placeholder="Ano"
-              />
+         <View style={styles.dateSelectionContainerTop}>
+              <Text style={styles.dateSelectionLabel}>Ranking da Data:</Text>
+              <TouchableOpacity onPress={showDatepicker} style={styles.dateDisplayButton}>
+                 <Text style={styles.dateDisplayText}>
+                     {selectedDate ? selectedDate.toLocaleDateString() : 'Selecionar Data'}
+                 </Text>
+              </TouchableOpacity>
+
+              {/* DateTimePicker (condicionalmente renderizado) */}
+              {showDatePicker && (
+                  <DateTimePicker
+                      testID="dateTimePicker"
+                      value={selectedDate || new Date()} // Use selectedDate ou a data atual como valor inicial
+                      mode="date" // Modo de seleção de data
+                      display="default" // Estilo de exibição (depende da plataforma)
+                      onChange={onDateChange} // Handler para a mudança de data
+                      maximumDate={new Date()} // Impede a seleção de datas futuras
+                  />
+              )}
           </View>
       )}
 
@@ -809,30 +784,20 @@ const styles = StyleSheet.create({
     color: '#555',
     marginRight: 10,
   },
-  dateInput: {
-    width: 50, // Largura fixa para o input do dia/mês
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    fontSize: 16,
-    textAlign: 'center', // Centraliza o texto
-  },
-   dateInputYear: { // Estilo para o input do ano (um pouco mais largo)
-      width: 70,
-      height: 40,
-      borderColor: '#ccc',
-      borderWidth: 1,
+  // REMOVIDOS os estilos antigos dos inputs de data
+  // dateInput: { ... },
+  // dateInputYear: { ... },
+  // dateSeparator: { ... },
+  // NOVO: Estilos para o botão de exibição da data
+  dateDisplayButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 15,
       borderRadius: 8,
-      paddingHorizontal: 10,
+      backgroundColor: '#eee', // Fundo claro para o botão
+  },
+  dateDisplayText: {
       fontSize: 16,
-      textAlign: 'center',
-   },
-  dateSeparator: {
-      fontSize: 16,
-      color: '#555',
-      marginHorizontal: 5,
+      color: '#333',
   },
   debugText: { // Style for the debug text
       fontSize: 12,
