@@ -68,7 +68,6 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   // NOVO ESTADO: Para controlar a visibilidade do seletor de data
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-
   // Effect to load user's terrains from Firebase AND fetch latest daily contribution
   useEffect(() => {
     if (!db || !user) {
@@ -144,7 +143,6 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
       setUserTerrains(updatedTerrainsData);
 
-
       // Set the first *real* terrain as selected by default if the list is not empty
       // Only set if no land is currently selected OR if the previously selected land is no longer in the list
       const realTerrains = updatedTerrainsData.filter(terrain => !terrain.isAddNewCard && !terrain.isDeleteCard); // Filter out special cards
@@ -175,10 +173,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
   }, [db, user, selectedLandId]); // selectedLandId added as dependency to re-evaluate selection logic
 
-
   // REFATORAÇÃO DO useEffect DO RANKING COM LOGS DETALHADOS
-  // Substitua o useEffect do ranking (linha ~149) por esta versão:
-
   useEffect(() => {
       console.log("=== INICIO DEBUG RANKING ===");
       console.log("🔍 selectedDate objeto:", selectedDate);
@@ -389,124 +384,124 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       console.log("=== FIM onDateChange ===\n");
   };
 
-  // TESTE ADICIONAL: Verifique também no Firebase Console
-  // 1. Acesse Firestore Database
-  // 2. Vá na coleção 'daily_contributions'  
-  // 3. Verifique se existem documentos com:
-  //    - landId igual ao seu terreno selecionado
-  //    - date em formato YYYY-MM-DD
-  // 4. Confira se há documentos de datas diferentes
-  // 5. Procure por qualquer documento da coleção 'artifacts' (antiga)
-
-
   // Função para mostrar o seletor de data
   const showDatepicker = () => {
     setShowDatePicker(true);
   };
 
+  // 🧹 FUNÇÃO PARA LIMPEZA FORÇADA SEM CONFIRMAÇÃO
+  const forceCleanAllData = async (landId, dateString) => {
+    try {
+      console.log(`🧹 LIMPEZA FORÇADA para ${landId} em ${dateString}`);
 
-  // Handle updating ranking via long press on carousel item (Collect daily data)
+      const dailyContributionsCollectionRef = collection(db, 'daily_contributions');
+      const q = query(
+        dailyContributionsCollectionRef,
+        where('landId', '==', landId),
+        where('date', '==', dateString)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const batch = writeBatch(db);
+        let deleteCount = 0;
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          console.log(`🗑️ FORÇANDO remoção: ${doc.id} - ${data.kingdom_name}`);
+          batch.delete(doc.ref);
+          deleteCount++;
+        });
+
+        await batch.commit();
+        console.log(`✅ LIMPEZA FORÇADA: ${deleteCount} documentos removidos`);
+
+        // Aguardar um pouco para o Firebase processar
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        return deleteCount;
+      }
+
+      return 0;
+
+    } catch (error) {
+      console.error('❌ Erro na limpeza forçada:', error);
+      throw error;
+    }
+  };
+
+  // 🔄 NOVA VERSÃO do handleUpdateRanking COM LIMPEZA FORÇADA
   const handleUpdateRanking = async (landId) => {
-     console.log(`Dashboard: handleUpdateRanking called for Land ID: ${landId}`); // Log start of update
-     // Prevent updating if it's a special card
-     if (landId === 'add-new-terrain' || landId === 'delete-selected-terrain') {
-       console.log(`Dashboard: handleUpdateRanking: Ignored for special card ${landId}`); // Log ignore
-       return;
-     }
-     if (!db) {
-       Alert.alert('Erro', 'Firebase Database não está pronto.');
-       console.error("Dashboard: handleUpdateRanking: Firebase Database not ready."); // Log error
-       return;
-     }
+    console.log(`🎯 handleUpdateRanking INICIADO para ${landId}`);
 
-     // --- NOVO: Use a data selecionada pelo usuário para a coleta ---
-     const dateToCollect = selectedDate; // Use the selected date object
-     if (!dateToCollect) {
-         Alert.alert('Atenção', 'Selecione uma data para coletar os dados.');
-         console.warn("Dashboard: handleUpdateRanking: No date selected for collection.");
-         return;
-     }
-     // CORRIGIDO: Usa a data selecionada para a string de coleta.
-     // Use a mesma lógica de formatação manual para consistência
-     const year = dateToCollect.getFullYear();
-     const month = String(dateToCollect.getMonth() + 1).padStart(2, '0'); // Mês é base 0
-     const day = String(dateToCollect.getDate()).padStart(2, '0');
-     const dateStringForCollection = `${year}-${month}-${day}`;
+    if (landId === 'add-new-terrain' || landId === 'delete-selected-terrain') {
+      return;
+    }
 
-     console.log(`Dashboard: handleUpdateRanking: Collecting data for Land ID: ${landId} for date: ${dateStringForCollection} via API.`); // Log collection date
-     // --- FIM NOVO ---
+    if (!db || !selectedDate) {
+      Alert.alert('Erro', 'Requisitos não atendidos');
+      return;
+    }
 
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStringForCollection = `${year}-${month}-${day}`;
 
-     setRankingLoading(true); // Show loading while collecting data
+    console.log(`🎯 Processando ${landId} para ${dateStringForCollection}`);
 
-     try {
-       // Calculate yesterday's date (d-1) for collecting data
-       // REMOVIDO: Não calculamos mais o dia anterior aqui, usamos selectedDate
-       // const today = new Date();
-       // const yesterday = new Date(today);
-       // yesterday.setDate(today.getDate() - 1);
-       // const dateStringForCollection = yesterday.toISOString().split('T')[0]; // 'YYYY-MM-DD' (d-1)
-       // console.log(`Dashboard: handleUpdateRanking: Collecting data for Land ID: ${landId} for date: ${dateStringForCollection} via API.`); // Log collection date
+    setRankingLoading(true);
 
+    try {
+      // 1. LIMPEZA FORÇADA PRIMEIRO
+      console.log(`🧹 STEP 1: Limpeza forçada`);
+      const deletedCount = await forceCleanAllData(landId, dateStringForCollection);
+      console.log(`✅ STEP 1 COMPLETO: ${deletedCount} documentos removidos`);
 
-       // Fetch data for the *selected* day from the API
-       // Pass dateStringForCollection as both 'from' and 'to'
-       // CORRIGIDO: Passa a dateStringForCollection como from e to para fetchLandContribution.
-       const contributionsAPI = await fetchLandContribution(landId, dateStringForCollection, dateStringForCollection); // Pass dates to API fetch
-       console.log("Dashboard: handleUpdateRanking: Data received from API:", contributionsAPI); // Log API data
+      // 2. BUSCAR DADOS DA API
+      console.log(`📡 STEP 2: Buscando dados da API`);
+      const contributionsAPI = await fetchLandContribution(landId, dateStringForCollection, dateStringForCollection);
+      console.log(`✅ STEP 2 COMPLETO: ${contributionsAPI?.length || 0} registros da API`);
 
+      if (contributionsAPI && contributionsAPI.length > 0) {
+        // 3. SALVAR DADOS NOVOS
+        console.log(`💾 STEP 3: Salvando ${contributionsAPI.length} registros`);
+        const batch = writeBatch(db);
 
-       // Process API results to extract data for the specific collection date (yesterday)
-       // Assuming contribution objects from API might have a 'date' field or that the from=to filter works on the API side.
-       // If fetchLandContribution returns a list for a date range, you need to filter here.
-       // If fetchLandContribution was modified to only return data for from=to date, maybe no filtering needed.
-       // Let's assume fetchLandContribution now accepts and uses from/to correctly, returning only data for dateStringForCollection.
-       // If API returns data in a slightly different structure or for a range, this filtering needs adjustment.
-       const contributionsForSelectedDate = contributionsAPI; // Assuming fetchLandContribution with from=to returns only that day's data or []
-       console.log(`Dashboard: handleUpdateRanking: Data for collection date (${dateStringForCollection}):`, contributionsForSelectedDate); // Log data for collection date
+        contributionsAPI.forEach((contribution, index) => {
+          const docId = `${landId}_${contribution.kingdomId}_${dateStringForCollection}`;
+          const docRef = doc(db, 'daily_contributions', docId);
 
+          const dailyData = {
+            landId: landId,
+            kingdomId: contribution.kingdomId,
+            date: dateStringForCollection,
+            contribution_amount: contribution.total,
+            kingdom_name: contribution.name,
+            continent: contribution.continent,
+            timestamp: new Date()
+          };
 
-       if (contributionsForSelectedDate && contributionsForSelectedDate.length > 0) {
-         console.log(`Dashboard: handleUpdateRanking: Preparing to save ${contributionsForSelectedDate.length} records.`); // Log save count
-         const batch = writeBatch(db); // Use batch for efficient writes
+          batch.set(docRef, dailyData);
+          console.log(`✅ Batch ${index + 1}/${contributionsAPI.length}: ${contribution.name} - ${contribution.total}`);
+        });
 
-         for (const contribution of contributionsForSelectedDate) {
-           // Crie o ID único do documento na nova coleção: landId_kingdomId_YYYY-MM-DD
-           const docId = `${landId}_${contribution.kingdomId}_${dateStringForCollection}`;
-           const docRef = doc(db, 'daily_contributions', docId); // Referência para a nova coleção
+        await batch.commit();
+        console.log(`✅ STEP 3 COMPLETO: Batch commit realizado`);
 
-           // Prepare os dados para salvar na nova coleção
-           const dailyData = {
-             landId: landId,
-             kingdomId: contribution.kingdomId,
-             date: dateStringForCollection,
-             // Usar o 'total' retornado pela API diretamente,
-             contribution_amount: contribution.total, // Assuming 'total' is the correct field from API for daily contribution
-             kingdom_name: contribution.name,
-             continent: contribution.continent,
-             timestamp: new Date() // Usar a data/hora atual da coleta no cliente
-           };
+        Alert.alert('Sucesso!', `✅ Dados atualizados!\n❌ Removidos: ${deletedCount}\n✅ Adicionados: ${contributionsAPI.length}`);
 
-           batch.set(docRef, dailyData, { merge: true }); // Use merge: true in case doc exists (e.g. update) - though docId should be unique per day
-           console.log(`Dashboard: handleUpdateRanking: Added doc ${docId} to batch.`); // Log batch add
-         }
+      } else {
+        Alert.alert('Atenção', `Nenhum dado encontrado na API para ${dateStringForCollection}`);
+      }
 
-         // Commit o batch
-         await batch.commit();
-         Alert.alert('Sucesso!', `Dados de contribuição de ${dateStringForCollection} para o terreno ${landId} salvos!`);
-         console.log(`Dashboard: handleUpdateRanking: Batch commit successful.`); // Log batch commit success
-
-       } else {
-         Alert.alert('Atenção', `Nenhum dado de contribuição encontrado na API para Land ID ${landId} na data ${dateStringForCollection}.`);
-         console.log(`Dashboard: handleUpdateRanking: No data found in API for ${dateStringForCollection}.`); // Log no data from API
-       }
-     } catch (error) {
-       console.error("Dashboard: handleUpdateRanking: Error collecting and saving daily contribution:", error); // Log error
-       Alert.alert('Erro', 'Erro ao coletar e salvar dados: ' + error.message);
-     } finally {
-         setRankingLoading(false); // Hide loading after attempt
-         console.log(`Dashboard: handleUpdateRanking: Finished for Land ID: ${landId}`); // Log end of update
-     }
+    } catch (error) {
+      console.error("❌ Erro no processo:", error);
+      Alert.alert('Erro', 'Erro: ' + error.message);
+    } finally {
+      setRankingLoading(false);
+    }
   };
 
   // Função para adicionar Terreno ao Firebase (agora será chamada pelo modal)
@@ -574,7 +569,6 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       }
   };
 
-
   // Handle the selection of the "Add New Terrain" card or a real terrain
   const handleSelectLand = (landId) => {
       if (landId === 'add-new-terrain') {
@@ -623,7 +617,6 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       setIsDeleteModalVisible(false); // Usa o novo estado
   };
 
-
   // >>> Prepara os dados para o modal de confirmação
   // Encontra os dados do terreno selecionado para exibir no modal de confirmação
   // Buscamos o terrainToDeleteId, que é definido quando o card de exclusão é clicado
@@ -637,7 +630,6 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       terrainData: terrainDataForConfirmation, // Passa os dados do terreno para exclusão
   };
   // <<< Fim da preparação dos dados para o modal de confirmação
-
 
   if (loading) { // This loading state is for the initial loading of user terrains
     return (
@@ -670,6 +662,25 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
         </TouchableOpacity>
       </View>
 
+      {/* Adicione um botão temporário para testar: 
+      <TouchableOpacity onPress={debugAPIDirectly} style={{ backgroundColor: 'red', padding: 10 }}>
+        <Text style={{ color: 'white' }}>Debug API</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={testAPIURL} style={{ backgroundColor: 'blue', padding: 10 }}>
+        <Text style={{ color: 'white' }}>Test URL Direta</Text>
+      </TouchableOpacity>
+      */}
+
+      {/* Carrossel dos terrenos do usuário */}
+      {/* Removido o título "Meus Terrenos" - NOTA: O título está dentro do componente TerrainsCarousel, precisa ser modificado lá. */}
+      <TerrainsCarousel
+        terrains={userTerrains} // Pass the user's terrains including the add new card and delete card
+        onSelectLand={handleSelectLand} // Use the new handler
+        onUpdateRanking={handleUpdateRanking} // This will now trigger the daily data collection
+        selectedLandId={selectedLandId} // Pass selectedLandId to highlight
+      />
+
       {/* NOVO: Seção de Seleção de Data usando DateTimePicker */}
       {selectedLandId && selectedLandId !== 'add-new-terrain' && selectedLandId !== 'delete-selected-terrain' && (
          <View style={styles.dateSelectionContainerTop}>
@@ -693,16 +704,6 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
               )}
           </View>
       )}
-
-
-      {/* Carrossel dos terrenos do usuário */}
-      {/* Removido o título "Meus Terrenos" - NOTA: O título está dentro do componente TerrainsCarousel, precisa ser modificado lá. */}
-      <TerrainsCarousel
-        terrains={userTerrains} // Pass the user's terrains including the add new card and delete card
-        onSelectLand={handleSelectLand} // Use the new handler
-        onUpdateRanking={handleUpdateRanking} // This will now trigger the daily data collection
-        selectedLandId={selectedLandId} // Pass selectedLandId to highlight
-      />
 
       {/* Seção de exibição do Ranking (agora flex: 1) */}
       {selectedLandId && selectedLandId !== 'add-new-terrain' && selectedLandId !== 'delete-selected-terrain' && (
