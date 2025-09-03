@@ -176,105 +176,228 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   }, [db, user, selectedLandId]); // selectedLandId added as dependency to re-evaluate selection logic
 
 
-  // NOVO useEffect para buscar o ranking com base na data selecionada
+  // REFATORAÇÃO DO useEffect DO RANKING COM LOGS DETALHADOS
+  // Substitua o useEffect do ranking (linha ~149) por esta versão:
+
   useEffect(() => {
-    console.log("Dashboard: Ranking useEffect triggered. selectedDate (object):", selectedDate); // Log selectedDate object
-
-    // CORRIGIDO: Formata a data manualmente para evitar problemas de fuso horário com toISOString().
-    let targetDateString = null;
-    if (selectedDate) {
-        const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, '0'); // Mês é base 0
-        const day = String(selectedDate.getDate()).padStart(2, '0');
-        targetDateString = `${year}-${month}-${day}`;
-    }
-    console.log("Dashboard: Ranking useEffect: Target Date String for query (manual format):", targetDateString); // Log targetDateString
-
-    // Só busca o ranking se db, user, selectedLandId são válidos, não é um card especial, e targetDateString é válido
-    if (!db || !user || !selectedLandId || selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain' || !targetDateString) {
-      console.log("Dashboard: Ranking useEffect skipped. selectedLandId:", selectedLandId, "selectedDate:", selectedDate); // Log skip reason
-      setRanking([]); // Limpa o ranking se os pré-requisitos não forem atendidos
-      return;
-    }
-
-    console.log(`Dashboard: Ranking useEffect: Fetching ranking for Land ID: ${selectedLandId} for Date: ${targetDateString}`); // Log start of fetch
-    setRankingLoading(true); // Inicia o indicador de carregamento do ranking
-
-
-    // Consulta a coleção 'daily_contributions' filtrando por landId E a data selecionada
-    const dailyContributionsCollectionRef = collection(db, 'daily_contributions');
-
-    const q = query(
-        dailyContributionsCollectionRef,
-        where('landId', '==', selectedLandId),
-        where('date', '==', targetDateString), // Filtra pela data selecionada
-        orderBy('contribution_amount', 'desc') // Ordena apenas pela contribuição (já que a data é fixa)
-        // Opcional: limit o número de resultados se necessário
-    );
-
-    console.log("Dashboard: Ranking useEffect: Firestore query created for specific date."); // Log query creation
-
-
-    const unsubscribeRanking = onSnapshot(q, (snapshot) => {
-      console.log(`Dashboard: Ranking onSnapshot triggered for date ${targetDateString}. Snapshot size: ${snapshot.size}`); // Log snapshot size
-      const data = [];
-      snapshot.forEach(doc => {
-        data.push({
-          id: doc.id, // Usa doc.id (document ID como landId_kingdomId_YYYY-MM-DD) como key
-          ...doc.data() // Inclui todos os campos do documento (landId, kingdomId, date, contribution_amount, etc.)
-        });
-      });
-
-      // Removidos os logs verbosos
-      // console.log(`Dashboard: Ranking onSnapshot: Data received for date ${targetDateString}:`, data);
-      console.log(`Dashboard: Ranking onSnapshot: Received data size for date ${targetDateString}: ${data.length}`);
-
-
-      // Os dados já vêm ordenados pelo Firestore pela contribuição
-      // Adiciona posição com base na ordem recebida
-      const rankingWithPosition = data.map((item, index) => ({
-        ...item,
-        position: index + 1
-      }));
-
-      // Removidos os logs verbosos
-      // console.log(`Dashboard: Ranking onSnapshot: Processed ranking data for date ${targetDateString}:`, rankingWithPosition);
-      console.log(`Dashboard: Ranking onSnapshot: Processed data size for date ${targetDateString}: ${rankingWithPosition.length}`);
-
-
-      setRanking(rankingWithPosition);
-      setRankingLoading(false); // Ranking é carregado
-
-      if (rankingWithPosition.length > 0) {
-         console.log(`Dashboard: Ranking onSnapshot: Displaying ranking for Land ID ${selectedLandId} on date: ${targetDateString} with ${rankingWithPosition.length} items.`);
+      console.log("=== INICIO DEBUG RANKING ===");
+      console.log("🔍 selectedDate objeto:", selectedDate);
+      console.log("🔍 selectedLandId:", selectedLandId);
+      console.log("🔍 db:", !!db);
+      console.log("🔍 user:", !!user);
+      
+      // Formatar data manualmente
+      let targetDateString = null;
+      if (selectedDate) {
+          const year = selectedDate.getFullYear();
+          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+          const day = String(selectedDate.getDate()).padStart(2, '0');
+          targetDateString = `${year}-${month}-${day}`;
+          
+          console.log("📅 Data formatada para query:", targetDateString);
+          console.log("📅 selectedDate.toISOString():", selectedDate.toISOString());
+          console.log("📅 selectedDate.toDateString():", selectedDate.toDateString());
       } else {
-         console.log(`Dashboard: Ranking onSnapshot: No data to display for Land ID ${selectedLandId} on date: ${targetDateString}.`);
+          console.log("❌ selectedDate é null/undefined");
       }
 
-    }, (error) => {
-      console.error(`Dashboard: Ranking onSnapshot Error fetching ranking for Land ID ${selectedLandId} on date ${targetDateString}:`, error);
-      setRanking([]);
-      setRankingLoading(false); // Stop ranking loading indicator on error
-    });
+      // Validações de pré-requisitos
+      if (!db) {
+          console.log("❌ SKIP: db não disponível");
+          setRanking([]);
+          setRankingLoading(false);
+          return;
+      }
+      
+      if (!user) {
+          console.log("❌ SKIP: user não disponível");
+          setRanking([]);
+          setRankingLoading(false);
+          return;
+      }
+      
+      if (!selectedLandId) {
+          console.log("❌ SKIP: selectedLandId é null");
+          setRanking([]);
+          setRankingLoading(false);
+          return;
+      }
+      
+      if (selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain') {
+          console.log("❌ SKIP: selectedLandId é card especial:", selectedLandId);
+          setRanking([]);
+          setRankingLoading(false);
+          return;
+      }
+      
+      if (!targetDateString) {
+          console.log("❌ SKIP: targetDateString é null");
+          setRanking([]);
+          setRankingLoading(false);
+          return;
+      }
 
-    // Retorna a função de unsubscribe para limpar o listener
-    return () => {
-      console.log(`Dashboard: Ranking useEffect: Cleaning up listener for Land ID ${selectedLandId} on date ${targetDateString}.`); // Log cleanup
-      unsubscribeRanking();
-    };
+      console.log("✅ INICIANDO QUERY DO RANKING");
+      console.log("🎯 Parâmetros da query:");
+      console.log("   - Collection: daily_contributions");
+      console.log("   - landId:", selectedLandId);
+      console.log("   - date:", targetDateString);
+      
+      setRankingLoading(true);
 
-  }, [db, user, selectedLandId, selectedDate]); // Dependência atualizada para selectedDate
+      // Referência da coleção
+      const dailyContributionsCollectionRef = collection(db, 'daily_contributions');
 
+      // QUERY SIMPLIFICADA - sem orderBy composto para evitar problemas de índice
+      const q = query(
+          dailyContributionsCollectionRef,
+          where('landId', '==', selectedLandId),
+          where('date', '==', targetDateString)
+      );
 
-  // Handler para a mudança de data no DateTimePicker
+      console.log("🔄 Executando query...");
+
+      const unsubscribeRanking = onSnapshot(q, (snapshot) => {
+          console.log("=== SNAPSHOT RECEBIDO ===");
+          console.log("📦 Snapshot size:", snapshot.size);
+          console.log("📦 Snapshot empty:", snapshot.empty);
+          
+          if (snapshot.empty) {
+              console.log("⚠️ Nenhum documento encontrado para:");
+              console.log("   - landId:", selectedLandId);
+              console.log("   - date:", targetDateString);
+              setRanking([]);
+              setRankingLoading(false);
+              return;
+          }
+
+          const data = [];
+          let docCount = 0;
+          
+          snapshot.forEach(doc => {
+              docCount++;
+              const docData = doc.data();
+              
+              console.log(`📄 Documento ${docCount}:`);
+              console.log("   - ID:", doc.id);
+              console.log("   - landId doc:", docData.landId);
+              console.log("   - date doc:", docData.date);
+              console.log("   - contribution_amount:", docData.contribution_amount);
+              console.log("   - kingdom_name:", docData.kingdom_name);
+              
+              // VERIFICAÇÃO CRÍTICA: conferir se a data do documento bate com a data solicitada
+              if (docData.date !== targetDateString) {
+                  console.log("🚨 ALERTA: Data do documento NÃO confere!");
+                  console.log("   - Esperado:", targetDateString);
+                  console.log("   - Encontrado:", docData.date);
+              } else {
+                  console.log("✅ Data do documento confere");
+              }
+              
+              // VERIFICAÇÃO CRÍTICA: conferir se o landId do documento bate
+              if (docData.landId !== selectedLandId) {
+                  console.log("🚨 ALERTA: landId do documento NÃO confere!");
+                  console.log("   - Esperado:", selectedLandId);
+                  console.log("   - Encontrado:", docData.landId);
+              } else {
+                  console.log("✅ landId do documento confere");
+              }
+              
+              data.push({
+                  id: doc.id,
+                  ...docData
+              });
+          });
+
+          console.log("=== PROCESSANDO DADOS ===");
+          console.log("📊 Total documentos processados:", data.length);
+
+          // Ordenação manual por contribution_amount (decrescente)
+          data.sort((a, b) => {
+              const amountA = a.contribution_amount || 0;
+              const amountB = b.contribution_amount || 0;
+              return amountB - amountA;
+          });
+
+          console.log("📊 Dados após ordenação:");
+          data.forEach((item, index) => {
+              console.log(`   ${index + 1}. ${item.kingdom_name}: ${item.contribution_amount}`);
+          });
+
+          // Adicionar posições
+          const rankingWithPosition = data.map((item, index) => ({
+              ...item,
+              position: index + 1
+          }));
+
+          console.log("=== RANKING FINAL ===");
+          console.log("🏆 Total itens no ranking:", rankingWithPosition.length);
+          console.log("🏆 Para landId:", selectedLandId);
+          console.log("🏆 Para data:", targetDateString);
+
+          setRanking(rankingWithPosition);
+          setRankingLoading(false);
+          
+          console.log("=== FIM DEBUG RANKING ===\n");
+
+      }, (error) => {
+          console.error("=== ERRO NA QUERY ===");
+          console.error("🔥 Erro:", error);
+          console.error("🔥 Code:", error.code);
+          console.error("🔥 Message:", error.message);
+          console.error("🔥 Para landId:", selectedLandId);
+          console.error("🔥 Para data:", targetDateString);
+          
+          setRanking([]);
+          setRankingLoading(false);
+      });
+
+      // Cleanup
+      return () => {
+          console.log("🧹 Limpando listener do ranking para:", selectedLandId, targetDateString);
+          unsubscribeRanking();
+      };
+
+  }, [db, user, selectedLandId, selectedDate]);
+
+  // LOGS ADICIONAIS NO onDateChange
+  // Substitua a função onDateChange por esta versão:
+
   const onDateChange = (event, date) => {
-    const currentDate = date || selectedDate; // Use a data atual se nenhuma for selecionada
-    setShowDatePicker(Platform.OS === 'ios'); // No iOS, o seletor de data é um modal, no Android, ele se fecha automaticamente
-    // CORRIGIDO: Ao selecionar a data, atualiza selectedDate.
-    setSelectedDate(currentDate); // Atualiza o estado com a nova data selecionada
-    console.log("Dashboard: Date selected (DateTimePicker):", currentDate ? currentDate.toISOString() : 'null'); // Log the selected date object
-    console.log("Dashboard: Date selected (Formatted YYYY-MM-DD):", currentDate ? currentDate.toISOString().split('T')[0] : 'null'); // Log the formatted date
+      console.log("=== onDateChange TRIGGERED ===");
+      console.log("📅 Event type:", event.type);
+      console.log("📅 Date recebida:", date);
+      console.log("📅 selectedDate atual:", selectedDate);
+      
+      const currentDate = date || selectedDate;
+      setShowDatePicker(Platform.OS === 'ios');
+      
+      console.log("📅 Nova data selecionada:", currentDate);
+      console.log("📅 toISOString():", currentDate ? currentDate.toISOString() : 'null');
+      console.log("📅 Formatted YYYY-MM-DD:", currentDate ? currentDate.toISOString().split('T')[0] : 'null');
+      
+      // Formatar manualmente para comparar
+      if (currentDate) {
+          const year = currentDate.getFullYear();
+          const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+          const day = String(currentDate.getDate()).padStart(2, '0');
+          const manualFormat = `${year}-${month}-${day}`;
+          console.log("📅 Formato manual:", manualFormat);
+      }
+      
+      setSelectedDate(currentDate);
+      console.log("=== FIM onDateChange ===\n");
   };
+
+  // TESTE ADICIONAL: Verifique também no Firebase Console
+  // 1. Acesse Firestore Database
+  // 2. Vá na coleção 'daily_contributions'  
+  // 3. Verifique se existem documentos com:
+  //    - landId igual ao seu terreno selecionado
+  //    - date em formato YYYY-MM-DD
+  // 4. Confira se há documentos de datas diferentes
+  // 5. Procure por qualquer documento da coleção 'artifacts' (antiga)
+
 
   // Função para mostrar o seletor de data
   const showDatepicker = () => {
