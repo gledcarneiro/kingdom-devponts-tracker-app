@@ -12,7 +12,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground }
 // O componente para renderizar cada item do carrossel.
 // Ele agora precisa receber a prop 'item' e verificar se é o card de adicionar novo ou apagar.
 const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
-  console.log('Rendering TerrenoItem:', item?.id, 'isSelected:', isSelected, 'Item:', item); // Add this log
+  // console.log('Rendering TerrenoItem:', item?.id, 'isSelected:', isSelected, 'Item:', item); // Add this log
   const backgroundImage = require('./assets/land.png'); // Imagem de fundo para cards de terreno normais
 
   // Adicionando uma verificação inicial para garantir que item é um objeto válido

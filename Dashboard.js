@@ -80,7 +80,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
     const dailyContributionsCollectionRef = collection(db, 'daily_contributions'); // Reference to daily contributions
 
     const unsubscribeTerrains = onSnapshot(userTerrainsCollectionRef, async (snapshot) => {
-      console.log("Dashboard: User terrains onSnapshot triggered."); // Log snapshot trigger
+      // console.log("Dashboard: User terrains onSnapshot triggered."); // Log snapshot trigger
       const terrainsData = [];
       const landIds = []; // Array to store landIds for fetching daily contributions
 
@@ -93,7 +93,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
         landIds.push(terrain.id); // Collect landIds
       });
 
-      console.log("Dashboard: User terrains fetched:", terrainsData); // Log fetched terrains
+      // console.log("Dashboard: User terrains fetched:", terrainsData); // Log fetched terrains
 
       // Fetch latest daily contribution for each terrain
       const terrainsWithDailyData = await Promise.all(terrainsData.map(async (terrain) => {
@@ -110,7 +110,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
           let latestDailyContribution = null;
           if (!querySnapshot.empty) {
             latestDailyContribution = querySnapshot.docs[0].data();
-            console.log(`Dashboard: Found latest daily data for Land ID ${terrain.id}.`); // Log found daily data
+            // console.log(`Dashboard: Found latest daily data for Land ID ${terrain.id}.`); // Log found daily data
           } else {
             console.log(`Dashboard: No daily data found for Land ID ${terrain.id}.`); // Log no daily data
           }
@@ -126,7 +126,7 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
         }
       }));
 
-      console.log("Dashboard: Terrains with daily data:", terrainsWithDailyData); // Log combined data
+      // console.log("Dashboard: Terrains with daily data:", terrainsWithDailyData); // Log combined data
 
 
       // Add the special cards AFTER fetching and processing real terrains
@@ -136,8 +136,8 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
         : null;
 
       let updatedTerrainsData = [...terrainsWithDailyData, addTerrainCard];
-       if (deleteCard) {
-          updatedTerrainsData = [deleteCard, ...updatedTerrainsData];
+      if (deleteCard) {
+        updatedTerrainsData = [deleteCard, ...updatedTerrainsData];
       }
 
 
@@ -150,12 +150,12 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
       const isSelectedLandStillPresent = realTerrains.some(terrain => terrain.id === selectedLandId);
 
       if (realTerrains.length > 0) {
-         if (!selectedLandId || !isSelectedLandStillPresent) {
-            setSelectedLandId(firstRealTerrain.id);
-         }
+        if (!selectedLandId || !isSelectedLandStillPresent) {
+          setSelectedLandId(firstRealTerrain.id);
+        }
       } else {
-         setSelectedLandId(null);
-         setRanking([]); // Clear ranking if no terrains
+        setSelectedLandId(null);
+        setRanking([]); // Clear ranking if no terrains
       }
 
       setLoading(false); // Set loading to false after all data is fetched and processed
@@ -175,183 +175,184 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
   // REFATORAÇÃO DO useEffect DO RANKING COM LOGS DETALHADOS
   useEffect(() => {
-      console.log("=== INICIO DEBUG RANKING ===");
-      console.log("🔍 selectedDate objeto:", selectedDate);
-      console.log("🔍 selectedLandId:", selectedLandId);
-      console.log("🔍 db:", !!db);
-      console.log("🔍 user:", !!user);
-      
-      // Formatar data manualmente
-      let targetDateString = null;
-      if (selectedDate) {
-          const year = selectedDate.getFullYear();
-          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-          const day = String(selectedDate.getDate()).padStart(2, '0');
-          targetDateString = `${year}-${month}-${day}`;
-          
-          console.log("📅 Data formatada para query:", targetDateString);
-          console.log("📅 selectedDate.toISOString():", selectedDate.toISOString());
-          console.log("📅 selectedDate.toDateString():", selectedDate.toDateString());
-      } else {
-          console.log("❌ selectedDate é null/undefined");
+    console.log("\n");
+    console.log("=== INICIO DEBUG RANKING ===");
+    // console.log("🔍 selectedDate objeto:", selectedDate);
+    // console.log("🔍 selectedLandId:", selectedLandId);
+    // console.log("🔍 db:", !!db);
+    // console.log("🔍 user:", !!user);
+
+    // Formatar data manualmente
+    let targetDateString = null;
+    if (selectedDate) {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      targetDateString = `${year}-${month}-${day}`;
+
+      // console.log("📅 Data formatada para query:", targetDateString);
+      // console.log("📅 selectedDate.toISOString():", selectedDate.toISOString());
+      // console.log("📅 selectedDate.toDateString():", selectedDate.toDateString());
+    } else {
+      console.log("❌ selectedDate é null/undefined");
+    }
+
+    // Validações de pré-requisitos
+    if (!db) {
+      console.log("❌ SKIP: db não disponível");
+      setRanking([]);
+      setRankingLoading(false);
+      return;
+    }
+
+    if (!user) {
+      console.log("❌ SKIP: user não disponível");
+      setRanking([]);
+      setRankingLoading(false);
+      return;
+    }
+
+    if (!selectedLandId) {
+      console.log("❌ SKIP: selectedLandId é null");
+      setRanking([]);
+      setRankingLoading(false);
+      return;
+    }
+
+    if (selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain') {
+      console.log("❌ SKIP: selectedLandId é card especial:", selectedLandId);
+      setRanking([]);
+      setRankingLoading(false);
+      return;
+    }
+
+    if (!targetDateString) {
+      console.log("❌ SKIP: targetDateString é null");
+      setRanking([]);
+      setRankingLoading(false);
+      return;
+    }
+
+    // console.log("✅ INICIANDO QUERY DO RANKING");
+    console.log("🎯 Parâmetros da query:");
+    console.log("   - Collection: daily_contributions");
+    console.log("   - landId:", selectedLandId);
+    console.log("   - date:", targetDateString);
+
+    setRankingLoading(true);
+
+    // Referência da coleção
+    const dailyContributionsCollectionRef = collection(db, 'daily_contributions');
+
+    // QUERY SIMPLIFICADA - sem orderBy composto para evitar problemas de índice
+    const q = query(
+      dailyContributionsCollectionRef,
+      where('landId', '==', selectedLandId),
+      where('date', '==', targetDateString)
+    );
+
+    console.log("🔄 Executando query...");
+
+    const unsubscribeRanking = onSnapshot(q, (snapshot) => {
+      // console.log("=== SNAPSHOT RECEBIDO ===");
+      // console.log("📦 Snapshot size:", snapshot.size);
+      // console.log("📦 Snapshot empty:", snapshot.empty);
+
+      if (snapshot.empty) {
+        console.log("⚠️ Nenhum documento encontrado para:");
+        console.log("   - landId:", selectedLandId);
+        console.log("   - date:", targetDateString);
+        setRanking([]);
+        setRankingLoading(false);
+        return;
       }
 
-      // Validações de pré-requisitos
-      if (!db) {
-          console.log("❌ SKIP: db não disponível");
-          setRanking([]);
-          setRankingLoading(false);
-          return;
-      }
-      
-      if (!user) {
-          console.log("❌ SKIP: user não disponível");
-          setRanking([]);
-          setRankingLoading(false);
-          return;
-      }
-      
-      if (!selectedLandId) {
-          console.log("❌ SKIP: selectedLandId é null");
-          setRanking([]);
-          setRankingLoading(false);
-          return;
-      }
-      
-      if (selectedLandId === 'add-new-terrain' || selectedLandId === 'delete-selected-terrain') {
-          console.log("❌ SKIP: selectedLandId é card especial:", selectedLandId);
-          setRanking([]);
-          setRankingLoading(false);
-          return;
-      }
-      
-      if (!targetDateString) {
-          console.log("❌ SKIP: targetDateString é null");
-          setRanking([]);
-          setRankingLoading(false);
-          return;
-      }
+      const data = [];
+      let docCount = 0;
 
-      console.log("✅ INICIANDO QUERY DO RANKING");
-      console.log("🎯 Parâmetros da query:");
-      console.log("   - Collection: daily_contributions");
-      console.log("   - landId:", selectedLandId);
-      console.log("   - date:", targetDateString);
-      
-      setRankingLoading(true);
+      snapshot.forEach(doc => {
+        docCount++;
+        const docData = doc.data();
 
-      // Referência da coleção
-      const dailyContributionsCollectionRef = collection(db, 'daily_contributions');
+        // console.log(`📄 Documento ${docCount}:`);
+        // console.log("   - ID:", doc.id);
+        // console.log("   - landId doc:", docData.landId);
+        // console.log("   - date doc:", docData.date);
+        // console.log("   - contribution_amount:", docData.contribution_amount);
+        // console.log("   - kingdom_name:", docData.kingdom_name);
 
-      // QUERY SIMPLIFICADA - sem orderBy composto para evitar problemas de índice
-      const q = query(
-          dailyContributionsCollectionRef,
-          where('landId', '==', selectedLandId),
-          where('date', '==', targetDateString)
-      );
+        // VERIFICAÇÃO CRÍTICA: conferir se a data do documento bate com a data solicitada
+        if (docData.date !== targetDateString) {
+          console.log("🚨 ALERTA: Data do documento NÃO confere!");
+          console.log("   - Esperado:", targetDateString);
+          console.log("   - Encontrado:", docData.date);
+        } else {
+          // console.log("✅ Data do documento confere");
+        }
 
-      console.log("🔄 Executando query...");
+        // VERIFICAÇÃO CRÍTICA: conferir se o landId do documento bate
+        if (docData.landId !== selectedLandId) {
+          console.log("🚨 ALERTA: landId do documento NÃO confere!");
+          console.log("   - Esperado:", selectedLandId);
+          console.log("   - Encontrado:", docData.landId);
+        } else {
+          // console.log("✅ landId do documento confere");
+        }
 
-      const unsubscribeRanking = onSnapshot(q, (snapshot) => {
-          console.log("=== SNAPSHOT RECEBIDO ===");
-          console.log("📦 Snapshot size:", snapshot.size);
-          console.log("📦 Snapshot empty:", snapshot.empty);
-          
-          if (snapshot.empty) {
-              console.log("⚠️ Nenhum documento encontrado para:");
-              console.log("   - landId:", selectedLandId);
-              console.log("   - date:", targetDateString);
-              setRanking([]);
-              setRankingLoading(false);
-              return;
-          }
-
-          const data = [];
-          let docCount = 0;
-          
-          snapshot.forEach(doc => {
-              docCount++;
-              const docData = doc.data();
-              
-              console.log(`📄 Documento ${docCount}:`);
-              console.log("   - ID:", doc.id);
-              console.log("   - landId doc:", docData.landId);
-              console.log("   - date doc:", docData.date);
-              console.log("   - contribution_amount:", docData.contribution_amount);
-              console.log("   - kingdom_name:", docData.kingdom_name);
-              
-              // VERIFICAÇÃO CRÍTICA: conferir se a data do documento bate com a data solicitada
-              if (docData.date !== targetDateString) {
-                  console.log("🚨 ALERTA: Data do documento NÃO confere!");
-                  console.log("   - Esperado:", targetDateString);
-                  console.log("   - Encontrado:", docData.date);
-              } else {
-                  console.log("✅ Data do documento confere");
-              }
-              
-              // VERIFICAÇÃO CRÍTICA: conferir se o landId do documento bate
-              if (docData.landId !== selectedLandId) {
-                  console.log("🚨 ALERTA: landId do documento NÃO confere!");
-                  console.log("   - Esperado:", selectedLandId);
-                  console.log("   - Encontrado:", docData.landId);
-              } else {
-                  console.log("✅ landId do documento confere");
-              }
-              
-              data.push({
-                  id: doc.id,
-                  ...docData
-              });
-          });
-
-          console.log("=== PROCESSANDO DADOS ===");
-          console.log("📊 Total documentos processados:", data.length);
-
-          // Ordenação manual por contribution_amount (decrescente)
-          data.sort((a, b) => {
-              const amountA = a.contribution_amount || 0;
-              const amountB = b.contribution_amount || 0;
-              return amountB - amountA;
-          });
-
-          console.log("📊 Dados após ordenação:");
-          data.forEach((item, index) => {
-              console.log(`   ${index + 1}. ${item.kingdom_name}: ${item.contribution_amount}`);
-          });
-
-          // Adicionar posições
-          const rankingWithPosition = data.map((item, index) => ({
-              ...item,
-              position: index + 1
-          }));
-
-          console.log("=== RANKING FINAL ===");
-          console.log("🏆 Total itens no ranking:", rankingWithPosition.length);
-          console.log("🏆 Para landId:", selectedLandId);
-          console.log("🏆 Para data:", targetDateString);
-
-          setRanking(rankingWithPosition);
-          setRankingLoading(false);
-          
-          console.log("=== FIM DEBUG RANKING ===\n");
-
-      }, (error) => {
-          console.error("=== ERRO NA QUERY ===");
-          console.error("🔥 Erro:", error);
-          console.error("🔥 Code:", error.code);
-          console.error("🔥 Message:", error.message);
-          console.error("🔥 Para landId:", selectedLandId);
-          console.error("🔥 Para data:", targetDateString);
-          
-          setRanking([]);
-          setRankingLoading(false);
+        data.push({
+          id: doc.id,
+          ...docData
+        });
       });
 
-      // Cleanup
-      return () => {
-          console.log("🧹 Limpando listener do ranking para:", selectedLandId, targetDateString);
-          unsubscribeRanking();
-      };
+      console.log("=== PROCESSANDO DADOS ===");
+      console.log("📊 Total documentos processados:", data.length);
+
+      // Ordenação manual por contribution_amount (decrescente)
+      data.sort((a, b) => {
+        const amountA = a.contribution_amount || 0;
+        const amountB = b.contribution_amount || 0;
+        return amountB - amountA;
+      });
+
+      // console.log("📊 Dados após ordenação:");
+      data.forEach((item, index) => {
+        console.log(`   ${index + 1}. ${item.kingdom_name}: ${item.contribution_amount}`);
+      });
+
+      // Adicionar posições
+      const rankingWithPosition = data.map((item, index) => ({
+        ...item,
+        position: index + 1
+      }));
+
+      console.log("=== RANKING FINAL ===");
+      console.log("🏆 Total itens no ranking:", rankingWithPosition.length);
+      console.log("🏆 Para landId:", selectedLandId);
+      console.log("🏆 Para data:", targetDateString);
+
+      setRanking(rankingWithPosition);
+      setRankingLoading(false);
+
+      console.log("=== FIM DEBUG RANKING ===");
+
+    }, (error) => {
+      console.error("=== ERRO NA QUERY ===");
+      console.error("🔥 Erro:", error);
+      console.error("🔥 Code:", error.code);
+      console.error("🔥 Message:", error.message);
+      console.error("🔥 Para landId:", selectedLandId);
+      console.error("🔥 Para data:", targetDateString);
+
+      setRanking([]);
+      setRankingLoading(false);
+    });
+
+    // Cleanup
+    return () => {
+      console.log("🧹 Limpando listener do ranking para:", selectedLandId, targetDateString);
+      unsubscribeRanking();
+    };
 
   }, [db, user, selectedLandId, selectedDate]);
 
@@ -359,29 +360,29 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   // Substitua a função onDateChange por esta versão:
 
   const onDateChange = (event, date) => {
-      console.log("=== onDateChange TRIGGERED ===");
-      console.log("📅 Event type:", event.type);
-      console.log("📅 Date recebida:", date);
-      console.log("📅 selectedDate atual:", selectedDate);
-      
-      const currentDate = date || selectedDate;
-      setShowDatePicker(Platform.OS === 'ios');
-      
-      console.log("📅 Nova data selecionada:", currentDate);
-      console.log("📅 toISOString():", currentDate ? currentDate.toISOString() : 'null');
-      console.log("📅 Formatted YYYY-MM-DD:", currentDate ? currentDate.toISOString().split('T')[0] : 'null');
-      
-      // Formatar manualmente para comparar
-      if (currentDate) {
-          const year = currentDate.getFullYear();
-          const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-          const day = String(currentDate.getDate()).padStart(2, '0');
-          const manualFormat = `${year}-${month}-${day}`;
-          console.log("📅 Formato manual:", manualFormat);
-      }
-      
-      setSelectedDate(currentDate);
-      console.log("=== FIM onDateChange ===\n");
+    console.log("=== onDateChange TRIGGERED ===");
+    console.log("📅 Event type:", event.type);
+    console.log("📅 Date recebida:", date);
+    console.log("📅 selectedDate atual:", selectedDate);
+
+    const currentDate = date || selectedDate;
+    setShowDatePicker(Platform.OS === 'ios');
+
+    console.log("📅 Nova data selecionada:", currentDate);
+    console.log("📅 toISOString():", currentDate ? currentDate.toISOString() : 'null');
+    console.log("📅 Formatted YYYY-MM-DD:", currentDate ? currentDate.toISOString().split('T')[0] : 'null');
+
+    // Formatar manualmente para comparar
+    if (currentDate) {
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const manualFormat = `${year}-${month}-${day}`;
+      console.log("📅 Formato manual:", manualFormat);
+    }
+
+    setSelectedDate(currentDate);
+    console.log("=== FIM onDateChange ===\n");
   };
 
   // Função para mostrar o seletor de data
@@ -484,11 +485,11 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
           };
 
           batch.set(docRef, dailyData);
-          console.log(`✅ Batch ${index + 1}/${contributionsAPI.length}: ${contribution.name} - ${contribution.total}`);
+          // console.log(`✅ Batch ${index + 1}/${contributionsAPI.length}: ${contribution.name} - ${contribution.total}`);
         });
 
         await batch.commit();
-        console.log(`✅ STEP 3 COMPLETO: Batch commit realizado`);
+        // console.log(`✅ STEP 3 COMPLETO: Batch commit realizado`);
 
         Alert.alert('Sucesso!', `✅ Dados atualizados!\n❌ Removidos: ${deletedCount}\n✅ Adicionados: ${contributionsAPI.length}`);
 
@@ -537,64 +538,64 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
   // Função para remover Terreno do Firebase (chamada após confirmação do novo modal)
   const removeTerrainFromFirebase = async (landId) => {
-      if (!db || !user) {
-          console.error("Dashboard: Database ou usuário não pronto para remover terreno.");
-          Alert.alert("Erro", "Serviço indisponível. Tente novamente mais tarde."); // Usando Alert nativo
-          return;
-      }
-      if (!landId) {
-          console.error("Dashboard: Tentativa de remover terreno sem ID.");
-          Alert.alert("Erro", "ID do terreno para remover é obrigatório."); // Usando Alert nativo
-          return;
-      }
+    if (!db || !user) {
+      console.error("Dashboard: Database ou usuário não pronto para remover terreno.");
+      Alert.alert("Erro", "Serviço indisponível. Tente novamente mais tarde."); // Usando Alert nativo
+      return;
+    }
+    if (!landId) {
+      console.error("Dashboard: Tentativa de remover terreno sem ID.");
+      Alert.alert("Erro", "ID do terreno para remover é obrigatório."); // Usando Alert nativo
+      return;
+    }
 
-      const userId = user.uid;
-      const terrainDocRef = doc(db, `users/${userId}/terrenos`, landId);
+    const userId = user.uid;
+    const terrainDocRef = doc(db, `users/${userId}/terrenos`, landId);
 
-      try {
-          await deleteDoc(terrainDocRef);
-          console.log(`Dashboard: Terreno ${landId} removido do Firebase para o usuário ${userId}.`);
-          // Feedback visual de sucesso - pode ser um toast ou apenas o update instantâneo na tela
-          // Alert.alert(`Terreno ${landId} removido com sucesso!`); // Removido alert para feedback instantâneo
+    try {
+      await deleteDoc(terrainDocRef);
+      console.log(`Dashboard: Terreno ${landId} removido do Firebase para o usuário ${userId}.`);
+      // Feedback visual de sucesso - pode ser um toast ou apenas o update instantâneo na tela
+      // Alert.alert(`Terreno ${landId} removido com sucesso!`); // Removido alert para feedback instantâneo
 
-          // Após remover, limpamos o ID do terreno a ser deletado e fechamos o modal
-          setTerrainToDeleteId(null);
-          setIsDeleteModalVisible(false); // Usa o novo estado
-      } catch (error) {
-          console.error("Dashboard: Erro ao remover terreno do Firebase:", error);
-          Alert.alert("Erro", "Erro ao remover terreno. Tente novamente."); // Usando Alert nativo
-          // Fechamos o modal mesmo em caso de erro
-          setTerrainToDeleteId(null);
-          setIsDeleteModalVisible(false); // Usa o novo estado
-      }
+      // Após remover, limpamos o ID do terreno a ser deletado e fechamos o modal
+      setTerrainToDeleteId(null);
+      setIsDeleteModalVisible(false); // Usa o novo estado
+    } catch (error) {
+      console.error("Dashboard: Erro ao remover terreno do Firebase:", error);
+      Alert.alert("Erro", "Erro ao remover terreno. Tente novamente."); // Usando Alert nativo
+      // Fechamos o modal mesmo em caso de erro
+      setTerrainToDeleteId(null);
+      setIsDeleteModalVisible(false); // Usa o novo estado
+    }
   };
 
   // Handle the selection of the "Add New Terrain" card or a real terrain
   const handleSelectLand = (landId) => {
-      if (landId === 'add-new-terrain') {
-          setIsAddModalVisible(true); // Abre o modal de adição
-          // Não seleciona o card de adicionar novo como selectedLandId
-      } else if (landId === 'delete-selected-terrain') {
-          // Verifica se há um terreno real selecionado para apagar
-          if (selectedLandId && selectedLandId !== 'add-new-terrain') {
-              // Encontra os dados do terreno selecionado para mostrar no modal de confirmação
-              const terrainToConfirm = userTerrains.find(t => t.id === selectedLandId && !t.isAddNewCard && !t.isDeleteCard);
-              if (terrainToConfirm) {
-                 setTerrainToDeleteId(selectedLandId); // Armazena o ID para exclusão
-                 setIsDeleteModalVisible(true); // Abre o modal de confirmação (usando o novo estado)
-              } else {
-                 Alert.alert("Atenção", "Selecione um terreno válido no carrossel para poder apagá-lo.");
-                 setSelectedLandId(null); // Opcional: deseleciona o card de apagar
-              }
-          } else {
-              Alert.alert("Atenção", "Selecione um terreno no carrossel para poder apagá-lo.");
-              setSelectedLandId(null); // Opcional: deseleciona o card de apagar
-          }
-          // Não seleciona o card de apagar como selectedLandId
+    if (landId === 'add-new-terrain') {
+      setIsAddModalVisible(true); // Abre o modal de adição
+      // Não seleciona o card de adicionar novo como selectedLandId
+    } else if (landId === 'delete-selected-terrain') {
+      // Verifica se há um terreno real selecionado para apagar
+      if (selectedLandId && selectedLandId !== 'add-new-terrain') {
+        // Encontra os dados do terreno selecionado para mostrar no modal de confirmação
+        const terrainToConfirm = userTerrains.find(t => t.id === selectedLandId && !t.isAddNewCard && !t.isDeleteCard);
+        if (terrainToConfirm) {
+          setTerrainToDeleteId(selectedLandId); // Armazena o ID para exclusão
+          setIsDeleteModalVisible(true); // Abre o modal de confirmação (usando o novo estado)
+        } else {
+          Alert.alert("Atenção", "Selecione um terreno válido no carrossel para poder apagá-lo.");
+          setSelectedLandId(null); // Opcional: deseleciona o card de apagar
+        }
+      } else {
+        Alert.alert("Atenção", "Selecione um terreno no carrossel para poder apagá-lo.");
+        setSelectedLandId(null); // Opcional: deseleciona o card de apagar
       }
-      else {
-          setSelectedLandId(landId); // Seleciona um terreno real
-      }
+      // Não seleciona o card de apagar como selectedLandId
+    }
+    else {
+      setSelectedLandId(landId); // Seleciona um terreno real
+    }
   };
 
   const handleCloseAddModal = () => {
@@ -603,18 +604,18 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
   // Funções para o novo modal de confirmação de exclusão
   const handleConfirmDelete = () => {
-      if (terrainToDeleteId) {
-          removeTerrainFromFirebase(terrainToDeleteId); // Chama a função de remoção
-      } else {
-          console.error("Tentativa de confirmar exclusão sem um terreno selecionado.");
-          Alert.alert("Erro", "Não foi possível identificar o terreno para excluir.");
-          setIsDeleteModalVisible(false); // Usa o novo estado
-      }
+    if (terrainToDeleteId) {
+      removeTerrainFromFirebase(terrainToDeleteId); // Chama a função de remoção
+    } else {
+      console.error("Tentativa de confirmar exclusão sem um terreno selecionado.");
+      Alert.alert("Erro", "Não foi possível identificar o terreno para excluir.");
+      setIsDeleteModalVisible(false); // Usa o novo estado
+    }
   };
 
   const handleCancelDelete = () => {
-      setTerrainToDeleteId(null); // Limpa o ID do terreno a ser deletado
-      setIsDeleteModalVisible(false); // Usa o novo estado
+    setTerrainToDeleteId(null); // Limpa o ID do terreno a ser deletado
+    setIsDeleteModalVisible(false); // Usa o novo estado
   };
 
   // >>> Prepara os dados para o modal de confirmação
@@ -623,11 +624,11 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
   const terrainDataForConfirmation = userTerrains.find(t => t.id === terrainToDeleteId && !t.isAddNewCard && !t.isDeleteCard);
   // Adicionamos o terrainToDeleteId às props para o modal de confirmação saber qual ID usar
   const confirmationModalProps = {
-      visible: isDeleteModalVisible, // Usa o novo estado de visibilidade
-      onClose: handleCancelDelete, // Cancelar fecha o modal
-      onConfirm: handleConfirmDelete, // Função a ser chamada ao confirmar
-      // Passamos os dados do terreno para exibição no modal (opcional, depende do layout do modal)
-      terrainData: terrainDataForConfirmation, // Passa os dados do terreno para exclusão
+    visible: isDeleteModalVisible, // Usa o novo estado de visibilidade
+    onClose: handleCancelDelete, // Cancelar fecha o modal
+    onConfirm: handleConfirmDelete, // Função a ser chamada ao confirmar
+    // Passamos os dados do terreno para exibição no modal (opcional, depende do layout do modal)
+    terrainData: terrainDataForConfirmation, // Passa os dados do terreno para exclusão
   };
   // <<< Fim da preparação dos dados para o modal de confirmação
 
@@ -683,59 +684,59 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
       {/* NOVO: Seção de Seleção de Data usando DateTimePicker */}
       {selectedLandId && selectedLandId !== 'add-new-terrain' && selectedLandId !== 'delete-selected-terrain' && (
-         <View style={styles.dateSelectionContainerTop}>
-              <Text style={styles.dateSelectionLabel}>Ranking da Data:</Text>
-              <TouchableOpacity onPress={showDatepicker} style={styles.dateDisplayButton}>
-                 <Text style={styles.dateDisplayText}>
-                     {selectedDate ? selectedDate.toLocaleDateString() : 'Selecionar Data'}
-                 </Text>
-              </TouchableOpacity>
+        <View style={styles.dateSelectionContainerTop}>
+          <Text style={styles.dateSelectionLabel}>Ranking da Data:</Text>
+          <TouchableOpacity onPress={showDatepicker} style={styles.dateDisplayButton}>
+            <Text style={styles.dateDisplayText}>
+              {selectedDate ? selectedDate.toLocaleDateString() : 'Selecionar Data'}
+            </Text>
+          </TouchableOpacity>
 
-              {/* DateTimePicker (condicionalmente renderizado) */}
-              {showDatePicker && (
-                  <DateTimePicker
-                      testID="dateTimePicker"
-                      value={selectedDate || new Date()} // Use selectedDate ou a data atual como valor inicial
-                      mode="date" // Modo de seleção de data
-                      display="default" // Estilo de exibição (depende da plataforma)
-                      onChange={onDateChange} // Handler para a mudança de data
-                      maximumDate={new Date()} // Impede a seleção de datas futuras
-                  />
-              )}
-          </View>
+          {/* DateTimePicker (condicionalmente renderizado) */}
+          {showDatePicker && (
+            <DateTimePicker
+              testID="dateTimePicker"
+              value={selectedDate || new Date()} // Use selectedDate ou a data atual como valor inicial
+              mode="date" // Modo de seleção de data
+              display="default" // Estilo de exibição (depende da plataforma)
+              onChange={onDateChange} // Handler para a mudança de data
+              maximumDate={new Date()} // Impede a seleção de datas futuras
+            />
+          )}
+        </View>
       )}
 
       {/* Seção de exibição do Ranking (agora flex: 1) */}
       {selectedLandId && selectedLandId !== 'add-new-terrain' && selectedLandId !== 'delete-selected-terrain' && (
         <View style={styles.rankingSection}>
 
-           {/* NOVO: Texto informativo do Ranking (ID, Nome, Qtd Itens) */}
-           <View style={styles.rankingInfoBar}>
-              <Text style={styles.rankingInfoId}>{`#${selectedLandId}`}</Text> {/* ID do terreno */}
-              {/* Encontra o nome do terreno pelo selectedLandId */}
-              <Text style={styles.rankingInfoName}>{userTerrains.find(t => t.id === selectedLandId)?.name || 'Terreno Desconhecido'}</Text> {/* Nome do terreno */}
-              <Text style={styles.rankingInfoCount}>{`${ranking.length} itens`}</Text> {/* Quantidade de itens no ranking */}
-           </View>
+          {/* NOVO: Texto informativo do Ranking (ID, Nome, Qtd Itens) */}
+          <View style={styles.rankingInfoBar}>
+            <Text style={styles.rankingInfoId}>{`#${selectedLandId}`}</Text> {/* ID do terreno */}
+            {/* Encontra o nome do terreno pelo selectedLandId */}
+            <Text style={styles.rankingInfoName}>{userTerrains.find(t => t.id === selectedLandId)?.name || 'Terreno Desconhecido'}</Text> {/* Nome do terreno */}
+            <Text style={styles.rankingInfoCount}>{`${ranking.length} itens`}</Text> {/* Quantidade de itens no ranking */}
+          </View>
 
 
           {/* Área de Exibição do Ranking (Loading, Lista ou Placeholder) */}
           {rankingLoading ? (
-              <View style={styles.rankingLoadingContainer}>
-                 <ActivityIndicator size="small" color="#6a1b9a" />
-                 <Text style={styles.rankingLoadingText}>Carregando ranking...</Text>
-              </View>
+            <View style={styles.rankingLoadingContainer}>
+              <ActivityIndicator size="small" color="#6a1b9a" />
+              <Text style={styles.rankingLoadingText}>Carregando ranking...</Text>
+            </View>
           ) : ranking.length > 0 ? (
-             <FlatList
-               data={ranking}
-               renderItem={({ item }) => <RankingItem item={item} />} // RankingItem needs to be re-added or defined
-               keyExtractor={item => item.id}
-               style={styles.listContainer}
-               // Certifique-se de que RankingItem está definido ou importado
-             />
+            <FlatList
+              data={ranking}
+              renderItem={({ item }) => <RankingItem item={item} />} // RankingItem needs to be re-added or defined
+              keyExtractor={item => item.id}
+              style={styles.listContainer}
+            // Certifique-se de que RankingItem está definido ou importado
+            />
           ) : (
-             <View style={styles.rankingCard}>
-               <Text style={styles.rankingPlaceholderText}>Ainda não há dados de ranking para este terreno na data selecionada.</Text>
-             </View>
+            <View style={styles.rankingCard}>
+              <Text style={styles.rankingPlaceholderText}>Ainda não há dados de ranking para este terreno na data selecionada.</Text>
+            </View>
           )}
         </View>
       )}
@@ -750,28 +751,183 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
       {/* Renderiza o modal de confirmação de exclusão */}
       <DeleteConfirmationModal
-          visible={isDeleteModalVisible} // Usa o novo estado de visibilidade
-          onClose={handleCancelDelete} // Cancelar fecha o modal
-          onConfirm={handleConfirmDelete} // Função a ser chamada ao confirmar
-          terrainData={terrainDataForConfirmation} // Passa os dados do terreno para exclusão
+        visible={isDeleteModalVisible} // Usa o novo estado de visibilidade
+        onClose={handleCancelDelete} // Cancelar fecha o modal
+        onConfirm={handleConfirmDelete} // Função a ser chamada ao confirmar
+        terrainData={terrainDataForConfirmation} // Passa os dados do terreno para exclusão
       />
     </View>
   );
 };
 
-// O componente para renderizar um item do ranking (RE-ADICIONADO AQUI)
 const RankingItem = ({ item }) => {
-  // Mantendo o estilo simples por enquanto para verificar a renderização básica
+  // Função para determinar a cor da posição baseada no ranking
+  const getPositionStyle = (position) => {
+    switch (position) {
+      case 1:
+        return { backgroundColor: '#FFD700', color: '#FFF' }; // Ouro
+      case 2:
+        return { backgroundColor: '#C0C0C0', color: '#FFF' }; // Prata
+      case 3:
+        return { backgroundColor: '#CD7F32', color: '#FFF' }; // Bronze
+      default:
+        return { backgroundColor: '#6a1b9a', color: '#FFF' }; // Roxo padrão
+    }
+  };
+
+  // Função para formatar grandes números
+  const formatNumber = (num) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toLocaleString();
+  };
+
+  const positionStyle = getPositionStyle(item.position);
+  const isTopThree = item.position <= 3;
+
   return (
-    <View style={styles.simpleRankingItem}>
-      {/* Exibe a posição, nome e contribuição como texto simples */}
-      <Text style={styles.simpleRankingText}>#{item.position} - {String(item?.kingdom_name || 'Sem nome')}: {item.contribution_amount != null ? String(item.contribution_amount.toLocaleString()) : 'N/A'}</Text>
+    <View style={[styles.modernRankingItem, isTopThree && styles.topRankingItemShadow]}>
+      {/* Posição com estilo especial */}
+      <View style={[styles.positionBadge, positionStyle]}>
+        <Text style={styles.positionText}>#{item.position}</Text>
+      </View>
+
+      {/* Informações do reino */}
+      <View style={styles.rankingContent}>
+        <View style={styles.kingdomInfo}>
+          <Text style={[styles.kingdomName, isTopThree && styles.topKingdomName]} numberOfLines={1}>
+            {item.kingdom_name || 'Reino Desconhecido'}
+          </Text>
+          <Text style={styles.continentText}>{item.continent || 'Continente não informado'}</Text>
+        </View>
+
+        {/* Contribuição com destaque */}
+        <View style={styles.contributionContainer}>
+          <Text style={[styles.contributionAmount, isTopThree && styles.topContributionAmount]}>
+            {formatNumber(item.contribution_amount || 0)}
+          </Text>
+          <Text style={styles.contributionLabel}>contrib.</Text>
+        </View>
+      </View>
+
+      {/* Indicador visual para top 3 */}
+      {isTopThree && <View style={[styles.topIndicator, { backgroundColor: positionStyle.backgroundColor }]} />}
     </View>
   );
 };
 
-
 const styles = StyleSheet.create({
+  // Estilos modernos para o RankingItem
+  modernRankingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginVertical: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: '#f0f0f0',
+  },
+
+  topRankingItemShadow: {
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderLeftColor: '#6a1b9a',
+  },
+
+  positionBadge: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+
+  positionText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+
+  rankingContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  kingdomInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+
+  kingdomName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+
+  topKingdomName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#6a1b9a',
+  },
+
+  continentText: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
+  },
+
+  contributionContainer: {
+    alignItems: 'flex-end',
+  },
+
+  contributionAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4CAF50',
+    marginBottom: 2,
+  },
+
+  topContributionAmount: {
+    fontSize: 20,
+    color: '#6a1b9a',
+  },
+
+  contributionLabel: {
+    fontSize: 11,
+    color: '#999',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  topIndicator: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+
+  // Estilos gerais do Dashboard
+
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
@@ -794,16 +950,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6a1b9a',
   },
-   rankingLoadingContainer: { // New style for ranking loading
-     justifyContent: 'center',
-     alignItems: 'center',
-     paddingVertical: 20,
-   },
-   rankingLoadingText: { // New style for ranking loading text
-     marginTop: 10,
-     fontSize: 14,
-     color: '#6a1b9a',
-   },
+  rankingLoadingContainer: { // New style for ranking loading
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  rankingLoadingText: { // New style for ranking loading text
+    marginTop: 10,
+    fontSize: 14,
+    color: '#6a1b9a',
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -858,8 +1014,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  // Atualização do container da lista para melhor espaçamento
   listContainer: {
     flex: 1,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   rankingCard: {
     backgroundColor: '#fff',
@@ -895,21 +1054,21 @@ const styles = StyleSheet.create({
   // rankingTotal: { ... },
   // NOVO: Estilo simples para o RankingItem
   simpleRankingItem: {
-      paddingVertical: 8,
-      paddingHorizontal: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: '#eee',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   simpleRankingText: {
-      fontSize: 16,
-      color: '#333',
+    fontSize: 16,
+    color: '#333',
   },
   // NOVO: Estilos para a seção de ranking e seleção de data
   rankingSection: {
     marginTop: 20,
     flex: 1, // Added flex: 1 here
   },
-   // NOVO: Estilo para o contêiner de seleção de data no topo
+  // NOVO: Estilo para o contêiner de seleção de data no topo
   dateSelectionContainerTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -945,54 +1104,58 @@ const styles = StyleSheet.create({
   // dateSeparator: { ... },
   // NOVO: Estilos para o botão de exibição da data
   dateDisplayButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 15,
-      borderRadius: 8,
-      backgroundColor: '#eee', // Fundo claro para o botão
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    backgroundColor: '#eee', // Fundo claro para o botão
   },
   dateDisplayText: {
-      fontSize: 16,
-      color: '#333',
+    fontSize: 16,
+    color: '#333',
   },
   debugText: { // Style for the debug text
-      fontSize: 12,
-      color: '#888',
-      textAlign: 'center',
-      marginBottom: 10,
+    fontSize: 12,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  // NOVO: Estilos para a barra de informações do ranking
+  // Melhoria na barra de informações do ranking
   rankingInfoBar: {
-      flexDirection: 'row',
-      justifyContent: 'space-between', // Espalha os elementos
-      alignItems: 'center',
-      paddingHorizontal: 15, // Mesmo padding horizontal dos itens da lista
-      marginBottom: 10, // Espaço abaixo da barra de info e acima da lista
-      // Opcional: adicionar um fundo ou borda para destacar
-      // backgroundColor: '#f0f0f0',
-      // borderBottomWidth: 1,
-      // borderBottomColor: '#ddd',
-      // paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginHorizontal: 15,
+    marginBottom: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
+
   rankingInfoId: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      color: '#444',
-      flex: 1, // Permite que o ID ocupe o espaço necessário à esquerda
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6a1b9a',
+    flex: 1,
   },
+
   rankingInfoName: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      color: '#444',
-      flex: 2, // Permite que o nome ocupe mais espaço para centralizar
-      textAlign: 'center', // Centraliza o texto do nome
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    flex: 2,
+    textAlign: 'center',
   },
+
   rankingInfoCount: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      color: '#444',
-      flex: 1, // Permite que a contagem ocupe o espaço necessário à direita
-      textAlign: 'right', // Alinha a contagem à direita
-  }
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    flex: 1,
+    textAlign: 'right',
+  },
 });
 
 export default Dashboard;
