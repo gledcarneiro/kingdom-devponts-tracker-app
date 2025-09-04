@@ -1,14 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
 
-// Removendo a lista de terrenosData fixa, agora virá via props
-// const terrenosData = [
-//   { id: '158489', name: 'Planície Verdejante', level: 4, points: 1807575 },
-//   { id: '158233', name: 'Montanhas do Dragão', level: 5, points: 1543200 },
-//   { id: '158325', name: 'Floresta Sombria', level: 3, points: 987650 },
-//   { id: '136195', name: 'Ilha Flutuante', level: 6, points: 2100500 },
-// ];
-
 // O componente para renderizar cada item do carrossel.
 // Ele agora precisa receber a prop 'item' e verificar se é o card de adicionar novo ou apagar.
 const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
@@ -20,7 +12,6 @@ const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
       console.warn('TerrenoItem received invalid item:', item);
       return null; // Não renderiza se o item for inválido
   }
-
 
   // Verifica se é o card de adicionar novo
   if (item.isAddNewCard) {
@@ -38,7 +29,7 @@ const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
     );
   }
 
-  // >>> Verifica se é o card de apagar selecionado
+  // Verifica se é o card de apagar selecionado
   if (item.isDeleteCard) {
     return (
       <TouchableOpacity
@@ -53,8 +44,6 @@ const TerrenoItem = ({ item, onSelect, onUpdate, isSelected }) => {
       </TouchableOpacity>
     );
   }
-  // <<< Fim da verificação do card de apagar
-
 
   // Renderiza um card de terreno normal
   return (
@@ -102,10 +91,9 @@ const TerrainsCarousel = ({ terrains, onSelectLand, onUpdateRanking, selectedLan
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.carouselScrollView}
-        contentContainerStyle={styles.carouselContentContainer} // Adiciona padding ao redor dos cards
+        contentContainerStyle={styles.carouselContentContainer}
       >
-        // Mapeia sobre a prop 'terrains'
-        // Explicitly wrap mapped items in a View
+        {/* CORREÇÃO: Comentários JSX devem usar {/* */}
         <View style={{ flexDirection: 'row' }}>
           {terrains && Array.isArray(terrains) && terrains.map((item) => {
             // Add a check to ensure the item is a valid object before rendering AND before accessing item.id for the key
@@ -244,7 +232,7 @@ const styles = StyleSheet.create({
       color: '#555',
       fontWeight: 'bold',
   },
-  // >>> Estilos para o card "Apagar Selecionado"
+  // Estilos para o card "Apagar Selecionado"
   deleteCard: {
       backgroundColor: '#ffcdd2', // Cor de fundo vermelha clara (soft red)
       borderWidth: 2,
@@ -266,7 +254,6 @@ const styles = StyleSheet.create({
       color: '#d32f2f', // Cor vermelha mais escura para o texto
       fontWeight: 'bold',
   },
-  // <<< Fim dos estilos do card de apagar
 });
 
 export default TerrainsCarousel;

@@ -16,8 +16,7 @@ const DeleteConfirmationModal = ({ visible, onClose, onConfirm, terrainData }) =
           {/* Título e mensagem de confirmação */}
           <Text style={styles.modalTitle}>Confirmar Exclusão</Text>
           <Text style={styles.modalMessage}>
-            Tem certeza que deseja remover o terreno
-            {terrainData ? ` "${terrainData.name || terrainData.id}"` : ' selecionado'}?
+            {`Tem certeza que deseja remover o terreno${terrainData ? ` "${terrainData.name || terrainData.id}"` : ' selecionado'}?`}
           </Text>
 
           {/* Botões de ação */}
