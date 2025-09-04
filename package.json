@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "expo start",
+    "clear": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
@@ -21,6 +22,7 @@
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-calendars": "^1.1313.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-snap-carousel": "^3.9.1"
   },

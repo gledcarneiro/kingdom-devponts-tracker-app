@@ -712,10 +712,9 @@ const Dashboard = ({ user, handleSignOut, db }) => { // db is passed as prop fro
 
           {/* NOVO: Texto informativo do Ranking (ID, Nome, Qtd Itens) */}
           <View style={styles.rankingInfoBar}>
-            <Text style={styles.rankingInfoId}>{`#${selectedLandId}`}</Text> {/* ID do terreno */}
-            {/* Encontra o nome do terreno pelo selectedLandId */}
-            <Text style={styles.rankingInfoName}>{userTerrains.find(t => t.id === selectedLandId)?.name || 'Terreno Desconhecido'}</Text> {/* Nome do terreno */}
-            <Text style={styles.rankingInfoCount}>{`${ranking.length} itens`}</Text> {/* Quantidade de itens no ranking */}
+            <Text style={styles.rankingInfoId}>{`#${selectedLandId}`}</Text>
+            <Text style={styles.rankingInfoName}>{userTerrains.find(t => t.id === selectedLandId)?.name || 'Terreno Desconhecido'}</Text>
+            <Text style={styles.rankingInfoCount}>{`${ranking.length} itens`}</Text>
           </View>
 
 
